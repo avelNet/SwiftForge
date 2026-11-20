@@ -1,0 +1,38 @@
+2026-11-20T16:37:15+07:00
+No device found.
+ERROR: No device found!
+ERROR: No device found!
+ERROR: No device found!
+/bin/bash: line 13: 18355 Killed                     .local/squashfs-root/AppRun devices --usb
+Error: Please log in with `xtool auth` before running this command.
+xtool install exit: 1
+9]: libusb: error [op_get_active_config_descriptor] device unconfigured
+Nov 20 16:35:31 Hubuntu usbmuxd[14919]: [16:35:31.899][3] Could not get old configuration descriptor for device 3-17: LIBUSB_ERROR_NOT_FOUND
+Nov 20 16:35:31 Hubuntu usbmuxd[14919]: [16:35:31.907][3] Initialization complete
+Nov 20 16:35:31 Hubuntu usbmuxd[14919]: [16:35:31.907][3] Enabled exit on SIGUSR1 if no devices are attached. Start a new instance with "--exit" to trigger.
+Nov 20 16:35:31 Hubuntu usbmuxd[14919]: [16:35:31.908][3] Connecting to new device on location 0x30011 as ID 1
+Nov 20 16:35:31 Hubuntu usbmuxd[14919]: [16:35:31.908][3] Connected to v2.0 device 1 on location 0x30011 with serial number [UDID скрыт]
+Nov 20 16:35:54 Hubuntu usbmuxd[14919]: [16:35:54.219][1] Sending to client fd 15 failed: -1 Broken pipe
+Nov 20 16:35:54 Hubuntu usbmuxd[14919]: free(): invalid pointer
+Nov 20 16:35:55 Hubuntu systemd[1]: usbmuxd.service: Main process exited, code=dumped, status=6/ABRT
+Nov 20 16:35:55 Hubuntu systemd[1]: usbmuxd.service: Failed with result 'core-dump'.
+Повторная проверка после падения:
+failed
+No device found.
+
+После перезапуска службы:
+active
+SUCCESS: Validated pairing with device [UDID скрыт]
+Device                                      DeveloperMode
+[UDID скрыт]                   disabled
+[UDID скрыт]: Developer Mode menu revealed successfully.
+idevicedevmodectl reveal exit: 0
+
+После подтверждения и перезагрузки iPhone:
+Device                                      DeveloperMode
+[UDID скрыт]                   enabled
+
+Подписанное приложение после установки через iLoader 2.4.2:
+ideviceinstaller list: dev.swiftforge.iosprobe.[Team ID скрыт], "1.0", "SwiftForge Probe"
+idevicesyslog pidlist: 601 SwiftForgeProbe
+На скриншоте с физического iPhone: SwiftForge: Swift on iPhone OK

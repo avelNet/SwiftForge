@@ -1,0 +1,10 @@
+Swift version 6.4.2 (swift-6.4.2-RELEASE)
+Target: x86_64-unknown-linux-gnu
+Building for debugging...
+[Planning deferred tasks]
+[19 / 22] AllExcludingTests
+[19 / 22] LinuxSmoke-product
+[23 / 23] LinuxSmoke-product
+Build complete! (2.11 secs)
+linux-smoke/.build/debug/LinuxSmoke: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=c9667a13343904654e281560a726c15bbfbaeb20, for GNU/Linux 3.2.0, with debug_info, not stripped
+SwiftForge: Linux Swift OK

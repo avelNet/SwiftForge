@@ -1,0 +1,384 @@
++ set -euo pipefail
+++ dirname -- ios-probe/build.sh
++ cd -- ios-probe
++ build=/home/pavel/development/SwiftForge/ios-probe/.build
++ app=/home/pavel/development/SwiftForge/ios-probe/.build/Payload/SwiftForgeProbe.app
++ mkdir -p /home/pavel/development/SwiftForge/ios-probe/.build/Payload/SwiftForgeProbe.app dist
++ rm -f dist/SwiftForgeProbe.ipa
++ swiftc -target arm64-apple-ios18.0 -wmo -Osize -enable-experimental-feature Embedded -no-allocations -Xfrontend -disable-stack-protector -parse-as-library -emit-object Probe.swift -o /home/pavel/development/SwiftForge/ios-probe/.build/Probe.o
++ clang -target arm64-apple-ios18.0 -fobjc-arc -Wall -Wextra -Werror -c main.m -o /home/pavel/development/SwiftForge/ios-probe/.build/main.o
++ /home/pavel/development/SwiftForge/.local/llvm/usr/lib/llvm-21/bin/ld64.lld -arch arm64 -platform_version ios 18.0 18.0 -no_adhoc_codesign -o /home/pavel/development/SwiftForge/ios-probe/.build/Payload/SwiftForgeProbe.app/SwiftForgeProbe /home/pavel/development/SwiftForge/ios-probe/.build/main.o /home/pavel/development/SwiftForge/ios-probe/.build/Probe.o -L /home/pavel/development/SwiftForge/ios-probe/stubs -lSystem -lobjc /home/pavel/development/SwiftForge/ios-probe/stubs/UIKit.tbd /home/pavel/development/SwiftForge/ios-probe/stubs/Foundation.tbd
++ python3 - /home/pavel/development/SwiftForge/ios-probe/.build/Payload/SwiftForgeProbe.app
+dist/SwiftForgeProbe.ipa (unsigned)
+Archive:  ios-probe/dist/SwiftForgeProbe.ipa
+    testing: Payload/SwiftForgeProbe.app/Info.plist   OK
+    testing: Payload/SwiftForgeProbe.app/SwiftForgeProbe   OK
+No errors detected in compressed data of ios-probe/dist/SwiftForgeProbe.ipa.
+ios-probe/.build/Payload/SwiftForgeProbe.app/SwiftForgeProbe: Mach-O 64-bit arm64 executable, flags:<NOUNDEFS|DYLDLINK|TWOLEVEL|WEAK_DEFINES|BINDS_TO_WEAK|PIE>
+ios-probe/.build/Payload/SwiftForgeProbe.app/SwiftForgeProbe:
+Mach header
+      magic cputype cpusubtype  caps    filetype ncmds sizeofcmds      flags
+MH_MAGIC_64   ARM64        ALL  0x00     EXECUTE    20       2144   NOUNDEFS DYLDLINK TWOLEVEL WEAK_DEFINES BINDS_TO_WEAK PIE
+Load command 0
+      cmd LC_SEGMENT_64
+  cmdsize 72
+  segname __PAGEZERO
+   vmaddr 0x0000000000000000
+   vmsize 0x0000000100000000
+  fileoff 0
+ filesize 0
+  maxprot ---
+ initprot ---
+   nsects 0
+    flags (none)
+Load command 1
+      cmd LC_SEGMENT_64
+  cmdsize 552
+  segname __TEXT
+   vmaddr 0x0000000100000000
+   vmsize 0x0000000000008000
+  fileoff 0
+ filesize 32768
+  maxprot r-x
+ initprot r-x
+   nsects 6
+    flags (none)
+Section
+  sectname __text
+   segname __TEXT
+      addr 0x0000000100004000
+      size 0x0000000000000af4
+    offset 16384
+     align 2^2 (4)
+    reloff 0
+    nreloc 0
+      type S_REGULAR
+attributes PURE_INSTRUCTIONS SOME_INSTRUCTIONS
+ reserved1 0
+ reserved2 0
+Section
+  sectname __stubs
+   segname __TEXT
+      addr 0x0000000100004af4
+      size 0x000000000000006c
+    offset 19188
+     align 2^2 (4)
+    reloff 0
+    nreloc 0
+      type S_SYMBOL_STUBS
+attributes PURE_INSTRUCTIONS SOME_INSTRUCTIONS
+ reserved1 12 (index into indirect symbol table)
+ reserved2 12 (size of stubs)
+Section
+  sectname __objc_methname
+   segname __TEXT
+      addr 0x0000000100004b60
+      size 0x0000000000000125
+    offset 19296
+     align 2^0 (1)
+    reloff 0
+    nreloc 0
+      type S_CSTRING_LITERALS
+attributes (none)
+ reserved1 0
+ reserved2 0
+Section
+  sectname __cstring
+   segname __TEXT
+      addr 0x0000000100004c85
+      size 0x0000000000000083
+    offset 19589
+     align 2^0 (1)
+    reloff 0
+    nreloc 0
+      type S_CSTRING_LITERALS
+attributes (none)
+ reserved1 0
+ reserved2 0
+Section
+  sectname __objc_methlist
+   segname __TEXT
+      addr 0x0000000100004d08
+      size 0x0000000000000038
+    offset 19720
+     align 2^2 (4)
+    reloff 0
+    nreloc 0
+      type S_REGULAR
+attributes NO_DEAD_STRIP
+ reserved1 0
+ reserved2 0
+Section
+  sectname __unwind_info
+   segname __TEXT
+      addr 0x0000000100004d40
+      size 0x0000000000001044
+    offset 19776
+     align 2^2 (4)
+    reloff 0
+    nreloc 0
+      type S_REGULAR
+attributes (none)
+ reserved1 0
+ reserved2 0
+Load command 2
+      cmd LC_SEGMENT_64
+  cmdsize 312
+  segname __DATA_CONST
+   vmaddr 0x0000000100008000
+   vmsize 0x0000000000004000
+  fileoff 32768
+ filesize 16384
+  maxprot rw-
+ initprot rw-
+   nsects 3
+    flags SG_READ_ONLY
+Section
+  sectname __got
+   segname __DATA_CONST
+      addr 0x0000000100008000
+      size 0x0000000000000060
+    offset 32768
+     align 2^3 (8)
+    reloff 0
+    nreloc 0
+      type S_NON_LAZY_SYMBOL_POINTERS
+attributes (none)
+ reserved1 0 (index into indirect symbol table)
+ reserved2 0
+Section
+  sectname __objc_classlist
+   segname __DATA_CONST
+      addr 0x0000000100008060
+      size 0x0000000000000008
+    offset 32864
+     align 2^3 (8)
+    reloff 0
+    nreloc 0
+      type S_REGULAR
+attributes NO_DEAD_STRIP
+ reserved1 0
+ reserved2 0
+Section
+  sectname __objc_imageinfo
+   segname __DATA_CONST
+      addr 0x0000000100008068
+      size 0x0000000000000008
+    offset 32872
+     align 2^0 (1)
+    reloff 0
+    nreloc 0
+      type S_REGULAR
+attributes (none)
+ reserved1 0
+ reserved2 0
+Load command 3
+      cmd LC_SEGMENT_64
+  cmdsize 552
+  segname __DATA
+   vmaddr 0x000000010000c000
+   vmsize 0x0000000000004000
+  fileoff 49152
+ filesize 16384
+  maxprot rw-
+ initprot rw-
+   nsects 6
+    flags (none)
+Section
+  sectname __objc_classrefs
+   segname __DATA
+      addr 0x000000010000c000
+      size 0x0000000000000038
+    offset 49152
+     align 2^3 (8)
+    reloff 0
+    nreloc 0
+      type S_REGULAR
+attributes NO_DEAD_STRIP
+ reserved1 0
+ reserved2 0
+Section
+  sectname __objc_selrefs
+   segname __DATA
+      addr 0x000000010000c038
+      size 0x00000000000000a0
+    offset 49208
+     align 2^3 (8)
+    reloff 0
+    nreloc 0
+      type S_LITERAL_POINTERS
+attributes NO_DEAD_STRIP
+ reserved1 0
+ reserved2 0
+Section
+  sectname __objc_ivar
+   segname __DATA
+      addr 0x000000010000c0d8
+      size 0x0000000000000004
+    offset 49368
+     align 2^2 (4)
+    reloff 0
+    nreloc 0
+      type S_REGULAR
+attributes (none)
+ reserved1 0
+ reserved2 0
+Section
+  sectname __objc_const
+   segname __DATA
+      addr 0x000000010000c0e0
+      size 0x00000000000000d0
+    offset 49376
+     align 2^3 (8)
+    reloff 0
+    nreloc 0
+      type S_REGULAR
+attributes (none)
+ reserved1 0
+ reserved2 0
+Section
+  sectname __objc_data
+   segname __DATA
+      addr 0x000000010000c1b0
+      size 0x0000000000000050
+    offset 49584
+     align 2^3 (8)
+    reloff 0
+    nreloc 0
+      type S_REGULAR
+attributes (none)
+ reserved1 0
+ reserved2 0
+Section
+  sectname __data
+   segname __DATA
+      addr 0x000000010000c200
+      size 0x0000000000000010
+    offset 49664
+     align 2^3 (8)
+    reloff 0
+    nreloc 0
+      type S_REGULAR
+attributes (none)
+ reserved1 0
+ reserved2 0
+Load command 4
+      cmd LC_SEGMENT_64
+  cmdsize 72
+  segname __LINKEDIT
+   vmaddr 0x0000000100010000
+   vmsize 0x00000000000015f0
+  fileoff 65536
+ filesize 5616
+  maxprot r--
+ initprot r--
+   nsects 0
+    flags (none)
+Load command 5
+      cmd LC_DYLD_CHAINED_FIXUPS
+  cmdsize 16
+  dataoff 65536
+ datasize 680
+Load command 6
+      cmd LC_DYLD_EXPORTS_TRIE
+  cmdsize 16
+  dataoff 66216
+ datasize 776
+Load command 7
+     cmd LC_SYMTAB
+ cmdsize 24
+  symoff 67040
+   nsyms 90
+  stroff 68568
+ strsize 2584
+Load command 8
+            cmd LC_DYSYMTAB
+        cmdsize 80
+      ilocalsym 0
+      nlocalsym 38
+     iextdefsym 38
+     nextdefsym 30
+      iundefsym 68
+      nundefsym 22
+         tocoff 0
+           ntoc 0
+      modtaboff 0
+        nmodtab 0
+   extrefsymoff 0
+    nextrefsyms 0
+ indirectsymoff 68480
+  nindirectsyms 21
+      extreloff 0
+        nextrel 0
+      locreloff 0
+        nlocrel 0
+Load command 9
+          cmd LC_ENCRYPTION_INFO_64
+      cmdsize 24
+     cryptoff 16384
+    cryptsize 16384
+      cryptid 0
+          pad 0
+Load command 10
+          cmd LC_LOAD_DYLINKER
+      cmdsize 32
+         name /usr/lib/dyld (offset 12)
+Load command 11
+     cmd LC_UUID
+ cmdsize 24
+    uuid 4C4C4450-5555-3144-A140-57F0B19FD81C
+Load command 12
+       cmd LC_BUILD_VERSION
+   cmdsize 32
+  platform ios
+       sdk 18.0
+     minos 18.0
+    ntools 1
+      tool lld
+   version 21.1.8
+Load command 13
+       cmd LC_MAIN
+   cmdsize 24
+  entryoff 17620
+ stacksize 0
+Load command 14
+          cmd LC_LOAD_DYLIB
+      cmdsize 56
+         name /usr/lib/libSystem.B.dylib (offset 24)
+   time stamp 0 Thu Jan  1 07:00:00 1970
+      current version 1.0.0
+compatibility version 1.0.0
+Load command 15
+          cmd LC_LOAD_DYLIB
+      cmdsize 56
+         name /usr/lib/libobjc.A.dylib (offset 24)
+   time stamp 0 Thu Jan  1 07:00:00 1970
+      current version 1.0.0
+compatibility version 1.0.0
+Load command 16
+          cmd LC_LOAD_DYLIB
+      cmdsize 80
+         name /System/Library/Frameworks/UIKit.framework/UIKit (offset 24)
+   time stamp 0 Thu Jan  1 07:00:00 1970
+      current version 1.0.0
+compatibility version 1.0.0
+Load command 17
+          cmd LC_LOAD_DYLIB
+      cmdsize 88
+         name /System/Library/Frameworks/Foundation.framework/Foundation (offset 24)
+   time stamp 0 Thu Jan  1 07:00:00 1970
+      current version 1.0.0
+compatibility version 1.0.0
+Load command 18
+      cmd LC_FUNCTION_STARTS
+  cmdsize 16
+  dataoff 66992
+ datasize 48
+Load command 19
+      cmd LC_DATA_IN_CODE
+  cmdsize 16
+  dataoff 67040
+ datasize 0
+00000001000044d4 T _main
+0000000100004574 T _swiftforge_probe_value
+32207a9bb5f2626daab1490b413ed8b2cf0d9dabe368c20ccbc797a83673ec07  ios-probe/dist/SwiftForgeProbe.ipa

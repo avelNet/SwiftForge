@@ -1,0 +1,9 @@
++ set -euo pipefail
+++ dirname -- ios-probe/build.sh
++ cd -- ios-probe
++ build=/home/pavel/development/SwiftForge/ios-probe/.build
++ app=/home/pavel/development/SwiftForge/ios-probe/.build/Payload/SwiftForgeProbe.app
++ mkdir -p /home/pavel/development/SwiftForge/ios-probe/.build/Payload/SwiftForgeProbe.app dist
++ rm -f dist/SwiftForgeProbe.ipa
++ swiftc -target arm64-apple-ios16.0 -wmo -Osize -enable-experimental-feature Embedded -no-allocations -Xfrontend -disable-stack-protector -parse-as-library -emit-object Probe.swift -o /home/pavel/development/SwiftForge/ios-probe/.build/Probe.o
+<unknown>:0: error: compiling for iOS 16.0, but module 'Swift' has a minimum deployment target of iOS 18: /home/pavel/development/SwiftForge/.local/swift/usr/lib/swift/embedded/Swift.swiftmodule/arm64-apple-ios.swiftmodule

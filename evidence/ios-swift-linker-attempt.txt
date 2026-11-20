@@ -1,0 +1,16 @@
++ set -euo pipefail
+++ dirname -- ios-probe/build.sh
++ cd -- ios-probe
++ build=/home/pavel/development/SwiftForge/ios-probe/.build
++ app=/home/pavel/development/SwiftForge/ios-probe/.build/Payload/SwiftForgeProbe.app
++ mkdir -p /home/pavel/development/SwiftForge/ios-probe/.build/Payload/SwiftForgeProbe.app dist
++ rm -f dist/SwiftForgeProbe.ipa
++ swiftc -target arm64-apple-ios18.0 -wmo -Osize -enable-experimental-feature Embedded -no-allocations -Xfrontend -disable-stack-protector -parse-as-library -emit-object Probe.swift -o /home/pavel/development/SwiftForge/ios-probe/.build/Probe.o
++ clang -target arm64-apple-ios18.0 -fobjc-arc -Wall -Wextra -Werror -c main.m -o /home/pavel/development/SwiftForge/ios-probe/.build/main.o
++ ld64.lld -arch arm64 -platform_version ios 18.0 18.0 -no_adhoc_codesign -o /home/pavel/development/SwiftForge/ios-probe/.build/Payload/SwiftForgeProbe.app/SwiftForgeProbe /home/pavel/development/SwiftForge/ios-probe/.build/main.o /home/pavel/development/SwiftForge/ios-probe/.build/Probe.o -L /home/pavel/development/SwiftForge/ios-probe/stubs -lSystem -lobjc -lUIKit -lFoundation
+ld64.lld: error: This version of lld does not support linking for platform iOS
+ld64.lld: error: This version of lld does not support linking for platform iOS
+ld64.lld: error: library not found for -lUIKit
+ld64.lld: error: library not found for -lFoundation
+ld64.lld: error: undefined symbol: _main
+>>> referenced by the entry point

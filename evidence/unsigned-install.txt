@@ -1,0 +1,11 @@
+WARNING: could not locate iTunesMetadata.plist in archive!
+WARNING: could not locate Payload/SwiftForgeProbe.app/SC_Info/SwiftForgeProbe.sinf in archive!
+Copying 'ios-probe/dist/SwiftForgeProbe.ipa' to device... DONE.
+Installing 'dev.swiftforge.iosprobe'
+Install: CreatingStagingDirectory (5%)
+Install: ExtractingPackage (15%)
+Install: InspectingPackage (20%)
+Install: PreflightingApplication (30%)
+Install: VerifyingApplication (40%)ERROR: Install failed. Got error "ApplicationVerificationFailed" with code 0xe800801c: Failed to verify code signature of /var/installd/Library/Caches/com.apple.mobile.installd.staging/temp.EfgmlI/extracted/Payload/SwiftForgeProbe.app : 0xe800801c (No code signature found.)
+
+ideviceinstaller exit: 128

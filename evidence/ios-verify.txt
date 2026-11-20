@@ -1,0 +1,6 @@
+dev.swiftforge.iosprobe: IPA and Info.plist OK
+MH_MAGIC_64   ARM64        ALL  0x00     EXECUTE    20       2144   NOUNDEFS DYLDLINK TWOLEVEL WEAK_DEFINES BINDS_TO_WEAK PIE
+  platform ios
+     minos 18.0
+0000000100004574 T _swiftforge_probe_value
+32207a9bb5f2626daab1490b413ed8b2cf0d9dabe368c20ccbc797a83673ec07  dist/SwiftForgeProbe.ipa

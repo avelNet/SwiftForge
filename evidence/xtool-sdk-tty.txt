@@ -1,0 +1,4 @@
+Now generating the Darwin SDK.
+
+Error: Could not read file or directory at path ''.
+  See 'xtool help sdk' for usage.

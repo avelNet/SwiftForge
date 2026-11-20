@@ -1,0 +1,27 @@
+Not installed
+No Swift SDKs are currently installed.
+NIOPosix/BaseSocketChannel.swift:1018: Fatal error: 'try!' expression unexpectedly raised an error: epoll_ctl(epfd:op:fd:event:): Operation not permitted) (errno: 1)
+Current stack trace:
+0    libswiftCore.so                    0x00007e17ca1631c0 swift_reportError + 33
+1    libswiftCore.so                    0x00007e17ca518820 _swift_stdlib_reportFatalErrorInFile + 109
+2    libswiftCore.so                    0x00007e17ca1739d1 <unavailable> + 1522129
+3    libswiftCore.so                    0x00007e17ca30a380 _assertionFailure(_:_:file:line:flags:) + 299
+4    libswiftCore.so                    0x00007e17ca3697a0 swift_unexpectedError + 803
+5    AppRun                             0x00005e1538b8dd2e <unavailable> + 12066094
+6    AppRun                             0x00005e1538ba3d18 <unavailable> + 12156184
+7    AppRun                             0x00005e1538ba151d <unavailable> + 12145949
+8    AppRun                             0x00005e1538b9c230 <unavailable> + 12124720
+9    AppRun                             0x00005e1538ba5970 <unavailable> + 12163440
+10   AppRun                             0x00005e1538b233d4 <unavailable> + 11629524
+11   AppRun                             0x00005e1538b22489 <unavailable> + 11625609
+12   AppRun                             0x00005e1538b20ab0 <unavailable> + 11618992
+13   AppRun                             0x00005e1538be184d <unavailable> + 12408909
+14   AppRun                             0x00005e1538be0908 <unavailable> + 12405000
+15   AppRun                             0x00005e1538bb7142 <unavailable> + 12235074
+16   AppRun                             0x00005e1538bbb07e <unavailable> + 12251262
+17   AppRun                             0x00005e1538bbdfcf <unavailable> + 12263375
+18   AppRun                             0x00005e1538c034a6 <unavailable> + 12547238
+19   libc.so.6                          0x00007e17c7ea3dba <unavailable> + 671162
+20   libc.so.6                          0x00007e17c7f3758c <unavailable> + 1275276
+/bin/bash: line 6: 18379 Illegal instruction        (core dumped) "$root/.local/squashfs-root/AppRun" dev build --ipa
+xtool dev build exit: 132

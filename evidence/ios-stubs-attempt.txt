@@ -1,0 +1,45 @@
++ set -euo pipefail
+++ dirname -- ios-probe/build.sh
++ cd -- ios-probe
++ build=/home/pavel/development/SwiftForge/ios-probe/.build
++ app=/home/pavel/development/SwiftForge/ios-probe/.build/Payload/SwiftForgeProbe.app
++ mkdir -p /home/pavel/development/SwiftForge/ios-probe/.build/Payload/SwiftForgeProbe.app dist
++ rm -f dist/SwiftForgeProbe.ipa
++ swiftc -target arm64-apple-ios18.0 -wmo -Osize -enable-experimental-feature Embedded -no-allocations -Xfrontend -disable-stack-protector -parse-as-library -emit-object Probe.swift -o /home/pavel/development/SwiftForge/ios-probe/.build/Probe.o
++ clang -target arm64-apple-ios18.0 -fobjc-arc -Wall -Wextra -Werror -c main.m -o /home/pavel/development/SwiftForge/ios-probe/.build/main.o
++ /home/pavel/development/SwiftForge/.local/llvm/usr/lib/llvm-21/bin/ld64.lld -arch arm64 -platform_version ios 18.0 18.0 -no_adhoc_codesign -o /home/pavel/development/SwiftForge/ios-probe/.build/Payload/SwiftForgeProbe.app/SwiftForgeProbe /home/pavel/development/SwiftForge/ios-probe/.build/main.o /home/pavel/development/SwiftForge/ios-probe/.build/Probe.o -L /home/pavel/development/SwiftForge/ios-probe/stubs -lSystem -lobjc -lUIKit -lFoundation
+ld64.lld: error: library not found for -lUIKit
+ld64.lld: error: library not found for -lFoundation
+ld64.lld: error: undefined symbol: _UIApplicationMain
+>>> referenced by /home/pavel/development/SwiftForge/ios-probe/.build/main.o:(symbol _main+0x6c)
+
+ld64.lld: error: undefined symbol: _NSStringFromClass
+>>> referenced by /home/pavel/development/SwiftForge/ios-probe/.build/main.o:(symbol _main+0x4c)
+
+ld64.lld: error: undefined symbol: _OBJC_CLASS_$_UIWindow
+>>> referenced by /home/pavel/development/SwiftForge/ios-probe/.build/main.o:(symbol ltmp1+0x0)
+
+ld64.lld: error: undefined symbol: _OBJC_CLASS_$_UIScreen
+>>> referenced by /home/pavel/development/SwiftForge/ios-probe/.build/main.o:(symbol _OBJC_CLASSLIST_REFERENCES_$_.1+0x0)
+
+ld64.lld: error: undefined symbol: _OBJC_CLASS_$_UIViewController
+>>> referenced by /home/pavel/development/SwiftForge/ios-probe/.build/main.o:(symbol _OBJC_CLASSLIST_REFERENCES_$_.8+0x0)
+
+ld64.lld: error: undefined symbol: _OBJC_CLASS_$_UIColor
+>>> referenced by /home/pavel/development/SwiftForge/ios-probe/.build/main.o:(symbol _OBJC_CLASSLIST_REFERENCES_$_.11+0x0)
+
+ld64.lld: error: undefined symbol: _OBJC_CLASS_$_UILabel
+>>> referenced by /home/pavel/development/SwiftForge/ios-probe/.build/main.o:(symbol _OBJC_CLASSLIST_REFERENCES_$_.16+0x0)
+
+ld64.lld: error: undefined symbol: _OBJC_CLASS_$_NSString
+>>> referenced by /home/pavel/development/SwiftForge/ios-probe/.build/main.o:(symbol _OBJC_CLASSLIST_REFERENCES_$_.18+0x0)
+
+ld64.lld: error: undefined symbol: _OBJC_METACLASS_$_UIResponder
+>>> referenced by /home/pavel/development/SwiftForge/ios-probe/.build/main.o:(symbol _OBJC_METACLASS_$_ProbeDelegate+0x8)
+>>> referenced by /home/pavel/development/SwiftForge/ios-probe/.build/main.o:(symbol _OBJC_METACLASS_$_ProbeDelegate+0x0)
+
+ld64.lld: error: undefined symbol: _OBJC_CLASS_$_UIResponder
+>>> referenced by /home/pavel/development/SwiftForge/ios-probe/.build/main.o:(symbol _OBJC_CLASS_$_ProbeDelegate+0x8)
+
+ld64.lld: error: undefined symbol: _bzero
+>>> referenced by /home/pavel/development/SwiftForge/ios-probe/.build/Probe.o:(symbol _swift_clearSensitive+0x8)

@@ -1,0 +1,70 @@
+name: Desktop preview builds
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            bundle: deb
+            target: linux
+            filename: SwiftForge-linux-x64.deb
+          - runner: windows-latest
+            bundle: nsis
+            target: windows
+            filename: SwiftForge-windows-x64.exe
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: ide
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ide/package-lock.json
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - run: npm ci
+      - run: npm run tauri -- build --bundles "${{ matrix.bundle }}" --config '{"bundle":{"active":true,"icon":["icons/icon.png","icons/icon.ico"]}}'
+      - run: |
+          mkdir -p preview
+          case "${{ matrix.target }}" in
+            linux)  artifact=$(find src-tauri/target/release/bundle/deb -name '*.deb' -print -quit) ;;
+            windows) artifact=$(find src-tauri/target/release/bundle/nsis -name '*.exe' -print -quit) ;;
+          esac
+          test -n "$artifact"
+          cp "$artifact" "preview/${{ matrix.filename }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: ide/preview/
+          if-no-files-found: error
+  publish:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: preview
+          merge-multiple: true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view preview >/dev/null 2>&1; then
+            gh release upload preview preview/* --clobber
+          else
+            gh release create preview preview/* --target "$GITHUB_SHA" --prerelease --title "SwiftForge preview" --notes "Preview installers for Ubuntu and Windows x64. iOS workflows have been verified on Ubuntu; Windows runtime testing is pending."
+          fi

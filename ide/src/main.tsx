@@ -8,13 +8,18 @@ import "monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js";
 import "monaco-editor/esm/vs/language/json/monaco.contribution.js";
 import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  CaretRightIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
+  FolderOpenIcon, MagnifyingGlassIcon, WarningCircleIcon, XIcon,
+} from "@phosphor-icons/react";
 import "@fontsource/geist/400.css";
 import "@fontsource/geist/500.css";
 import "@fontsource/geist/600.css";
 import "@fontsource/geist-mono/400.css";
 import "./styles.css";
 import { IPhonePanel } from "./IPhonePanel";
+import { DirectoryGlyph, ExplorerButton, FileGlyph, PanelDivider, workbenchTheme } from "./workbench";
 
 self.MonacoEnvironment = {
   getWorker: (_module, label) => label === "json" ? new JsonWorker() : new EditorWorker(),
@@ -51,7 +56,9 @@ function FileTree({ path, folders, active, onSelect }: {
     <li key={entry.path}>
       <button className={active === entry.path ? "entry selected" : "entry"} onClick={() => onSelect(entry)}
         title={entry.path} aria-expanded={entry.directory ? folders.has(entry.path) : undefined}>
-        <span aria-hidden="true">{entry.directory ? (folders.has(entry.path) ? "▾" : "▸") : "·"}</span>{entry.name}
+        {entry.directory ? <DirectoryGlyph expanded={folders.has(entry.path)} /> :
+          <><span className="tree-spacer" /><FileGlyph path={entry.path} /></>}
+        <span className="entry-name">{entry.name}</span>
       </button>
       {entry.directory && folders.has(entry.path) &&
         <FileTree path={entry.path} folders={folders} active={active} onSelect={onSelect} />}
@@ -66,6 +73,12 @@ function App() {
   const [active, setActive] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [showExplorer, setShowExplorer] = useState(true);
+  const [showPhone, setShowPhone] = useState(true);
+  const [mirrorActive, setMirrorActive] = useState(false);
+  const [explorerWidth, setExplorerWidth] = useState(220);
+  const [phoneWidth, setPhoneWidth] = useState(320);
+  const [cursor, setCursor] = useState({ lineNumber: 1, column: 1 });
   const [, redraw] = useState(0);
   const host = useRef<HTMLDivElement>(null);
   const instance = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -76,12 +89,15 @@ function App() {
 
   useEffect(() => {
     const code = editor.create(host.current!, {
-      model: null, theme: "vs-dark", automaticLayout: true, minimap: { enabled: false },
+      model: null, theme: workbenchTheme, automaticLayout: true, minimap: { enabled: false },
       fontFamily: "Geist Mono, monospace", fontSize: 14, lineHeight: 22,
-      padding: { top: 12 }, scrollBeyondLastLine: false,
+      padding: { top: 12 }, scrollBeyondLastLine: false, lineNumbersMinChars: 3,
+      overviewRulerBorder: false, renderLineHighlightOnlyWhenFocus: true,
     });
     instance.current = code;
+    const cursorSubscription = code.onDidChangeCursorPosition(event => setCursor(event.position));
     return () => {
+      cursorSubscription.dispose();
       code.dispose();
       for (const doc of documents.current.values()) {
         doc.subscription.dispose();
@@ -99,6 +115,8 @@ function App() {
     code.setModel(active ? documents.current.get(active)!.model : null);
     const view = active ? views.current.get(active) : undefined;
     if (view) code.restoreViewState(view);
+    const position = code.getPosition();
+    if (position) setCursor(position);
     displayed.current = active;
   }, [active, root]);
 
@@ -203,45 +221,129 @@ function App() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        save();
+      if (!event.ctrlKey && !event.metaKey || event.altKey || event.shiftKey) return;
+      switch (event.key.toLowerCase()) {
+        case "s":
+          event.preventDefault();
+          save();
+          break;
+        case "o":
+          event.preventDefault();
+          if (!event.repeat) openProject();
+          break;
+        case "b":
+          event.preventDefault();
+          if (!event.repeat) setShowExplorer(value => !value);
+          break;
       }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   });
 
+  const project = root?.split("/").at(-1);
+  const edited = active !== null && dirty(active);
+  const activeLanguage = active ? language(active) : null;
+  const languageName = activeLanguage === "swift" ? "Swift" :
+    activeLanguage === "plaintext" ? "Plain text" :
+    activeLanguage === "markdown" ? "Markdown" : activeLanguage?.toUpperCase();
+  const layout = {
+    "--explorer-width": showExplorer ? `min(30vw, ${explorerWidth}px)` : "0px",
+    "--phone-width": showPhone ? `min(34vw, ${phoneWidth}px)` : "0px",
+  } as CSSProperties;
+  const resizeExplorer = (width: number) => setExplorerWidth(Math.max(160, Math.min(384, width)));
+  const resizePhone = (width: number) => setPhoneWidth(Math.max(224, Math.min(480, width)));
+
   return (
-    <main className="app">
+    <main className="app" style={layout}>
       <header className="toolbar">
-        <span className="brand">SwiftForge</span>
-        <button className="primary" onClick={openProject} disabled={busy}>Open folder</button>
-        <button onClick={save} disabled={busy || !active || !dirty(active)}>Save</button>
+        <div className="brand">
+          <span className="brand-mark"><CodeIcon size={18} weight="bold" aria-hidden /></span>
+          <span>SwiftForge</span>
+        </div>
+        <div className="toolbar-actions">
+          <button className={root ? "action" : "action primary"} onClick={openProject} disabled={busy} title="Open folder · Ctrl+O">
+            <FolderOpenIcon size={17} aria-hidden /> Open folder
+          </button>
+          <button className="action" onClick={save} disabled={busy || !edited} title="Save · Ctrl+S">
+            <FloppyDiskIcon size={17} aria-hidden /> Save
+          </button>
+        </div>
       </header>
-      <aside aria-label="Project files" className="explorer">
-        <h2 title={root ?? undefined}>{root?.split("/").at(-1) || "Project files"}</h2>
-        {root && <FileTree path="" folders={folders} active={active} onSelect={select} />}
+
+      <nav className="activity-rail" aria-label="Workspace tools">
+        <ExplorerButton visible={showExplorer} onClick={() => setShowExplorer(value => !value)} />
+        <button className="rail-action" aria-label="Find in current file" title="Find in current file · Ctrl+F"
+          disabled={!active} onClick={() => void instance.current?.getAction("actions.find")?.run()}>
+          <MagnifyingGlassIcon size={21} aria-hidden />
+        </button>
+        <button className="rail-action device-toggle" aria-label="Toggle iPhone panel" aria-controls="iphone-preview"
+          title={mirrorActive ? "iPhone preview · receiver active" : "iPhone preview"} aria-pressed={showPhone}
+          data-active={mirrorActive} onClick={() => setShowPhone(value => !value)}>
+          <DeviceMobileIcon size={21} aria-hidden />
+        </button>
+      </nav>
+
+      <aside aria-label="Project files" id="project-explorer" className="explorer" hidden={!showExplorer}>
+        <div className="panel-heading">
+          <h2>Explorer</h2>
+          <button className="icon-button" onClick={openProject} disabled={busy} aria-label="Open project folder" title="Open project folder">
+            <FolderOpenIcon size={17} aria-hidden />
+          </button>
+        </div>
+        {root && <>
+          <div className="project-root" title={root}><FolderOpenIcon size={15} aria-hidden /><span>{project}</span></div>
+          <FileTree path="" folders={folders} active={active} onSelect={select} />
+        </>}
       </aside>
+      {showExplorer && <PanelDivider panel="project explorer" side="left" width={explorerWidth} onResize={resizeExplorer} />}
+
       <section className="workspace" aria-label="Code workspace">
         <nav className="tabs" aria-label="Open files">
           {tabs.map(path => (
             <div className={path === active ? "tab active" : "tab"} key={path}>
-              <button onClick={() => setActive(path)} aria-current={path === active ? "page" : undefined} title={path}>
-                {path.split("/").at(-1)}{dirty(path) && <span className="dirty" aria-label="unsaved"> ●</span>}
+              <button className="tab-file" onClick={() => setActive(path)} aria-current={path === active ? "page" : undefined} title={path}>
+                <FileGlyph path={path} /><span>{path.split("/").at(-1)}</span>
+                {dirty(path) && <span className="dirty-dot" aria-label="unsaved" />}
               </button>
-              <button className="close" aria-label={`Close ${path}`} onClick={() => close(path)}>×</button>
+              <button className="close icon-button" aria-label={`Close ${path}`} title="Close tab" onClick={() => close(path)}>
+                <XIcon size={13} aria-hidden />
+              </button>
             </div>
           ))}
         </nav>
+        {active && <div className="breadcrumbs" aria-label="Current file path">
+          {[project, ...active.split("/")].filter(Boolean).map((name, index) => (
+            <span key={`${index}:${name}`}>{index > 0 && <CaretRightIcon size={11} aria-hidden />}{name}</span>
+          ))}
+        </div>}
         <div className="editor-area">
           <div ref={host} className="editor" aria-hidden={!active} />
-          {!active && <div className="empty">{root ? "Select a file to edit." : "Open a project folder to start."}</div>}
+          {!active && <div className="empty">
+            <div className="empty-symbol"><CodeIcon size={32} aria-hidden /></div>
+            <h1>{root ? "Open a file" : "Open a Swift project"}</h1>
+            <p>{root ? "Choose a source file in Explorer." : "Choose an existing project folder to start editing."}</p>
+            {root && !showExplorer
+              ? <button className="action" onClick={() => setShowExplorer(true)}>Show Explorer</button>
+              : !root && <button className="action primary" onClick={openProject} disabled={busy}>
+                <FolderOpenIcon size={17} aria-hidden /> Open folder <kbd>Ctrl+O</kbd>
+              </button>}
+          </div>}
         </div>
       </section>
-      <IPhonePanel />
-      <footer className={notice ? "status error" : "status"} role="status">
-        {notice || (busy ? "Working…" : active || root || "No project open")}
+
+      {showPhone && <PanelDivider panel="iPhone preview" side="right" width={phoneWidth} onResize={resizePhone} />}
+      <IPhonePanel visible={showPhone} onReceiverChange={setMirrorActive} />
+
+      <footer className={notice ? "status error" : "status"}>
+        <span className="status-message" role="status" title={notice || active || root || undefined}>
+          {notice ? <WarningCircleIcon size={15} aria-hidden /> : active && !edited && <CheckCircleIcon size={15} aria-hidden />}
+          {notice || (busy ? "Working…" : active ? (edited ? "Unsaved changes" : "Saved") : project || "No project open")}
+        </span>
+        {active && <div className="editor-status">
+          <span>Ln {cursor.lineNumber}, Col {cursor.column}</span>
+          <span>UTF-8</span><span>{languageName}</span>
+        </div>}
       </footer>
     </main>
   );

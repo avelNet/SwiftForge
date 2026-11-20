@@ -92,6 +92,34 @@ function WorkbenchDialog({ title, close, busy = false, children }: {
   </dialog>;
 }
 
+export function CreateEntryDialog({ folder, parent, close, create }: {
+  folder: boolean; parent: string; close: () => void; create: (name: string) => Promise<void>;
+}) {
+  const t = useLocale();
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  return <WorkbenchDialog title={t(folder ? "New folder" : "New file")} close={close} busy={busy}>
+    <form className="settings-fields" onSubmit={async event => {
+      event.preventDefault();
+      if (busy || !name.trim()) return;
+      setBusy(true);
+      setError("");
+      try { await create(name.trim()); close(); }
+      catch (problem) { setError(t(String(problem))); }
+      finally { setBusy(false); }
+    }}>
+      <label>{t("Name")}<input autoFocus required value={name} onChange={event => setName(event.target.value)} /></label>
+      <code className="entry-parent" title={parent}>{parent}</code>
+      {error && <p role="alert">{error}</p>}
+      <div className="dialog-actions">
+        <button className="action" type="button" disabled={busy} onClick={close}>{t("Cancel")}</button>
+        <button className="action primary" type="submit" disabled={busy || !name.trim()}>{t("Create")}</button>
+      </div>
+    </form>
+  </WorkbenchDialog>;
+}
+
 export function Settings({ value, change, close }: {
   value: Preferences; change: (value: Preferences) => void; close: () => void;
 }) {

@@ -2,7 +2,7 @@ import { Locale, translator } from "./i18n";
 import { createRoot } from "react-dom/client";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { editor, Uri, type IPosition, type IRange } from "monaco-editor/esm/vs/editor/editor.api.js";
+import { editor, KeyCode, KeyMod, Uri, type IPosition, type IRange } from "monaco-editor/esm/vs/editor/editor.api.js";
 import "monaco-editor/esm/vs/editor/editor.all.js";
 import "monaco-editor/esm/vs/basic-languages/swift/swift.contribution.js";
 import "monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution.js";
@@ -12,7 +12,7 @@ import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
-  SunIcon, MoonIcon, SidebarSimpleIcon, CaretRightIcon, ArrowsInLineVerticalIcon, GithubLogoIcon, ListNumbersIcon, ArrowsLeftRightIcon, ArrowBendRightDownIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
+  SunIcon, MoonIcon, FilePlusIcon, FolderPlusIcon, SidebarSimpleIcon, CaretRightIcon, ArrowsInLineVerticalIcon, GithubLogoIcon, ListNumbersIcon, ArrowsLeftRightIcon, ArrowBendRightDownIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
   FolderOpenIcon, GearSixIcon, MagnifyingGlassIcon, PlusIcon, TerminalIcon, TerminalWindowIcon, WarningCircleIcon, XIcon,
 } from "@phosphor-icons/react";
 import "@fontsource/geist/400.css";
@@ -26,7 +26,7 @@ import { DeviceTools } from "./DeviceTools";
 import { TerminalPane } from "./TerminalPane";
 import { NewProject, useBuild } from "./BuildWorkspace";
 import { SwiftLanguage } from "./swift-language";
-import { GitHubClone, Settings, WorkbenchMenu, loadPreferences, zoomLevels } from "./WorkbenchTools";
+import { CreateEntryDialog, GitHubClone, Settings, WorkbenchMenu, loadPreferences, zoomLevels } from "./WorkbenchTools";
 import { DirectoryGlyph, ExplorerButton, FileGlyph, PanelDivider, workbenchTheme, lightWorkbenchTheme } from "./workbench";
 
 self.MonacoEnvironment = {
@@ -59,7 +59,7 @@ function FileTree({ path, folders, expanded, active, onSelect }: {
   folders: Map<string, Entry[]>;
   expanded: Set<string>;
   active: string | null;
-  onSelect: (entry: Entry) => void;
+  onSelect: (entry: Entry, leaf: Entry) => void;
 }) {
   return <ul className="file-tree">{folders.get(path)?.map(entry => {
     const names = [entry.name];
@@ -72,7 +72,7 @@ function FileTree({ path, folders, expanded, active, onSelect }: {
     }
     const open = entry.directory && expanded.has(entry.path);
     return <li key={entry.path}>
-      <button className={active === entry.path ? "entry selected" : "entry"} onClick={() => onSelect(entry)}
+      <button className={active === entry.path ? "entry selected" : "entry"} onClick={() => onSelect(entry, leaf)}
         title={leaf.path} aria-expanded={entry.directory ? open : undefined}>
         {entry.directory ? <DirectoryGlyph expanded={open} path={leaf.path} /> :
           <><span className="tree-spacer" /><FileGlyph path={entry.path} /></>}
@@ -86,6 +86,8 @@ function FileTree({ path, folders, expanded, active, onSelect }: {
 function App() {
   const [root, setRoot] = useState<string | null>(null);
   const [folders, setFolders] = useState(new Map<string, Entry[]>());
+  const [entryParent, setEntryParent] = useState("");
+  const [newEntry, setNewEntry] = useState<"file" | "folder" | null>(null);
   const [expanded, setExpanded] = useState(new Set<string>());
   const [tabs, setTabs] = useState<string[]>([]);
   const [active, setActive] = useState<string | null>(null);
@@ -130,6 +132,9 @@ function App() {
       padding: { top: 12 }, scrollBeyondLastLine: false, lineNumbersMinChars: 3,
       overviewRulerBorder: false, renderLineHighlightOnlyWhenFocus: true,
     });
+    code.addCommand(KeyMod.CtrlCmd | KeyCode.KeyD, () => {
+      void code.getAction("editor.action.copyLinesDownAction")?.run();
+    }, "editorTextFocus && !editorReadonly");
     instance.current = code;
     const cursorSubscription = code.onDidChangeCursorPosition(event => setCursor(event.position));
     return () => {
@@ -236,6 +241,7 @@ function App() {
     jump.current = null;
     setActive(null);
     setTabs([]);
+    setEntryParent("");
     setFolders(new Map());
     setExpanded(new Set());
     setRoot(next);
@@ -285,9 +291,31 @@ function App() {
     setActive(path);
   }
 
-  function select(entry: Entry) {
+  async function createEntry(name: string) {
+    if (!root || !newEntry) return;
+    const path = entryParent ? entryParent + "/" + name : name;
+    await invoke("create_entry", { root, parent: entryParent, name, directory: newEntry === "folder" });
+    await run(async () => {
+      const entries = await invoke<Entry[]>("list_directory", { root, path: entryParent });
+      setFolders(previous => new Map(previous).set(entryParent, entries));
+      setExpanded(previous => {
+        const next = new Set(previous);
+        let ancestor = "";
+        for (const part of entryParent.split("/").filter(Boolean)) {
+          ancestor = ancestor ? ancestor + "/" + part : part;
+          next.add(ancestor);
+        }
+        return next;
+      });
+      setGitRevision(value => value + 1);
+      if (newEntry === "file") await openFile(root, path);
+    });
+  }
+
+  function select(entry: Entry, leaf: Entry) {
     if (!root) return;
     void run(async () => {
+      setEntryParent(leaf.directory ? leaf.path : leaf.path.split("/").slice(0, -1).join("/"));
       if (entry.directory) {
         const open = new Set(expanded);
         if (open.delete(entry.path)) {
@@ -387,29 +415,41 @@ function App() {
         changeZoom(event.key === "0" ? 0 : event.key === "-" ? -1 : 1);
         return;
       }
-      if (newProject || cloneProject || settings || event.shiftKey) return;
-      switch (event.key.toLowerCase()) {
-        case "`":
+      if (newProject || cloneProject || settings || newEntry) return;
+      if (event.shiftKey) {
+        if (event.code === "KeyB" && root) {
+          event.preventDefault();
+          if (!event.repeat) void build.build();
+        }
+        return;
+      }
+      if (event.code === "KeyF" && active && !host.current?.contains(event.target as Node)) {
+        event.preventDefault();
+        void instance.current?.getAction("actions.find")?.run();
+        return;
+      }
+      switch (event.code) {
+        case "Backquote":
           event.preventDefault();
           if (!event.repeat) toggleTerminal();
           break;
-        case ",":
+        case "Comma":
           event.preventDefault();
           setSettings(true);
           break;
-        case "s":
+        case "KeyS":
           event.preventDefault();
           save();
           break;
-        case "n":
+        case "KeyN":
           event.preventDefault();
           if (!event.repeat) startNewProject();
           break;
-        case "o":
+        case "KeyO":
           event.preventDefault();
           if (!event.repeat) openProject();
           break;
-        case "b":
+        case "KeyB":
           event.preventDefault();
           if (!event.repeat) toggleSidebar(activeSidebar);
           break;
@@ -452,6 +492,10 @@ function App() {
             { name: t("Redo"), shortcut: "Ctrl+Y", enabled: !!active, run: () => instance.current?.trigger("menu", "redo", null) },
             { name: t("Command palette"), shortcut: "F1", enabled: !!active,
               run: () => void instance.current?.getAction("editor.action.quickCommand")?.run() },
+            { name: t("Peek definition"), shortcut: "Ctrl+Shift+F10", enabled: activeLanguage === "swift",
+              run: () => void instance.current?.getAction("editor.action.peekDefinition")?.run() },
+            { name: t("Duplicate line"), shortcut: "Ctrl+D", enabled: !!active,
+              run: () => void instance.current?.getAction("editor.action.copyLinesDownAction")?.run() },
             { name: t("Toggle line comment"), shortcut: "Ctrl+/", enabled: !!active,
               run: () => void instance.current?.getAction("editor.action.commentLine")?.run() },
             { name: t("Find"), shortcut: "Ctrl+F", enabled: !!active, run: () => void instance.current?.getAction("actions.find")?.run() },
@@ -468,7 +512,7 @@ function App() {
             { name: terminalVisible ? t("Hide terminal") : t("Show terminal"), shortcut: "Ctrl+`", enabled: !!root, run: toggleTerminal },
           ] },
           { label: t("Build"), items: [
-            { name: t("Build IPA"), enabled: !!root && !build.running, run: () => void build.build() },
+            { name: t("Build IPA"), shortcut: "Ctrl+Shift+B", enabled: !!root && !build.running, run: () => void build.build() },
             { name: t("Export IPA"), enabled: !!build.artifact, run: () => void build.exportIPA() },
             { name: t("Check toolchain"), run: () => void build.check() },
           ] },
@@ -544,6 +588,10 @@ function App() {
         <div className="panel-heading">
           <h2>{t("Explorer")}</h2>
           <div className="explorer-actions">
+            <button className="icon-button" disabled={!root || busy} onClick={() => setNewEntry("file")}
+              aria-label={t("New file")} title={t("New file")}><FilePlusIcon size={16} /></button>
+            <button className="icon-button" disabled={!root || busy} onClick={() => setNewEntry("folder")}
+              aria-label={t("New folder")} title={t("New folder")}><FolderPlusIcon size={16} /></button>
             <button className="icon-button" onClick={() => setExpanded(new Set())} disabled={busy || expanded.size === 0}
               aria-label={t("Collapse all folders")} title={t("Collapse all folders")}><ArrowsInLineVerticalIcon size={16} aria-hidden /></button>
             <button className="icon-button" onClick={openProject} disabled={busy} aria-label={t("Open project folder")} title={t("Open project folder")}>
@@ -552,7 +600,7 @@ function App() {
           </div>
         </div>
         {root && <>
-          <div className="project-root" title={root}><FolderOpenIcon size={15} aria-hidden /><span>{project}</span></div>
+          <button className="project-root explorer-root" title={root} aria-pressed={!entryParent} onClick={() => setEntryParent("")}><FolderOpenIcon size={15} aria-hidden /><span>{project}</span></button>
           <FileTree path="" folders={folders} expanded={expanded} active={active} onSelect={select} />
         </>}
       </aside>
@@ -637,6 +685,8 @@ function App() {
             <span>UTF-8</span><span>{languageName}</span></>}
         </div>
       </footer>
+      {newEntry && root && <CreateEntryDialog folder={newEntry === "folder"} parent={entryParent || root}
+        create={createEntry} close={() => setNewEntry(null)} />}
       {settings && <Settings value={preferences} change={setPreferences} close={() => setSettings(false)} />}
       {cloneProject && <GitHubClone close={() => setCloneProject(false)} opened={async next => {
         await adoptProject(next);

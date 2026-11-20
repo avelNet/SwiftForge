@@ -685,3 +685,7 @@ kbd { border: 1px solid #24160f40; border-radius: 4px; padding: 0 4px; font: 12p
 .editor-navigation { background: var(--surface); }
 [data-theme="light"] .icon-button:hover:not(:disabled),
 [data-theme="light"] .rail-action:hover:not(:disabled) { color: var(--muted); }
+
+.explorer-root { width: 100%; text-align: start; }
+.explorer-root:hover, .explorer-root:focus-visible { background: var(--raised); }
+.entry-parent { overflow-wrap: anywhere; color: var(--muted); }

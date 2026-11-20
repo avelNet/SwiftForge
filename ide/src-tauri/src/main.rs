@@ -8,6 +8,7 @@ use std::{
 use tauri::{AppHandle, Manager, State};
 
 mod build;
+mod device;
 mod github;
 mod language;
 mod mirror;
@@ -147,6 +148,7 @@ fn main() {
     tauri::Builder::default()
         .manage(Workspace::default())
         .manage(build::Build::default())
+        .manage(device::DeviceLogs::default())
         .manage(language::Language::default())
         .manage(mirror::Mirror::default())
         .plugin(tauri_plugin_dialog::init())
@@ -167,6 +169,10 @@ fn main() {
             language::language_start,
             language::language_send,
             language::language_stop,
+            device::usb_status,
+            device::open_iloader,
+            device::device_logs_start,
+            device::device_logs_stop,
             mirror::mirror_start,
             mirror::mirror_next,
             mirror::mirror_stop
@@ -176,6 +182,7 @@ fn main() {
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
                 let _ = mirror::mirror_stop(app.state());
+                let _ = device::device_logs_stop(app.state());
                 let _ = language::language_stop(app.state());
                 let _ = build::cancel_build(app.state());
             }

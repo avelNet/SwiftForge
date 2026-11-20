@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AirplayIcon, DeviceMobileIcon, StopIcon, WarningCircleIcon } from "@phosphor-icons/react";
 
 interface Receiver {
@@ -7,8 +7,9 @@ interface Receiver {
   pin: string;
 }
 
-export function IPhonePanel({ visible, onReceiverChange }: {
+export function IPhonePanel({ visible, onReceiverChange, children }: {
   visible: boolean;
+  children?: ReactNode;
   onReceiverChange: (active: boolean) => void;
 }) {
   const [receiver, setReceiver] = useState<Receiver | null>(null);
@@ -124,6 +125,7 @@ export function IPhonePanel({ visible, onReceiverChange }: {
         </button>
         <p className="iphone-status" role="status">{description}</p>
       </div>
+      {children}
     </aside>
   );
 }

@@ -100,7 +100,7 @@ fn read_frame(reader: &mut impl BufRead) -> io::Result<Option<Vec<u8>>> {
     Ok(Some(bytes))
 }
 
-fn child_command(binary: impl AsRef<std::ffi::OsStr>) -> Command {
+pub(crate) fn child_command(binary: impl AsRef<std::ffi::OsStr>) -> Command {
     let mut command = Command::new(binary);
     #[cfg(target_os = "linux")]
     {

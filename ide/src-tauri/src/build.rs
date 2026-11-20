@@ -8,7 +8,7 @@ use std::{
     thread,
     time::Duration,
 };
-use tauri::{ipc::Channel, AppHandle, State};
+use tauri::{ipc::Channel, AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 #[derive(Default)]
@@ -197,7 +197,11 @@ pub(crate) async fn export_ipa(app: AppHandle, workspace: State<'_, Workspace>, 
         }
     }
     let name = source.file_name().and_then(|file| file.to_str()).ok_or("Cannot read the IPA name.")?;
-    let Some(destination) = app.dialog().file().set_file_name(name).add_filter("iOS archive", &["ipa"]).blocking_save_file() else {
+    let mut dialog = app.dialog().file().set_file_name(name).add_filter("iOS archive", &["ipa"]);
+    if let Ok(downloads) = app.path().download_dir() {
+        dialog = dialog.set_directory(downloads);
+    }
+    let Some(destination) = dialog.blocking_save_file() else {
         return Ok(None);
     };
     let destination = destination.into_path().map_err(|error| error.to_string())?;

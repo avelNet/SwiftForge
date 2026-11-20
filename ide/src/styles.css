@@ -503,3 +503,15 @@ kbd { border: 1px solid #24160f40; border-radius: 4px; padding: 0 4px; font: 12p
   .toolbar-actions > .action:first-child,
   .toolbar-actions > .action:nth-child(2) { display: none; }
 }
+.device-tools {
+  padding: 8px 12px;
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--divider);
+  background: var(--rail);
+}
+.device-usb, .device-actions { display: flex; gap: 8px; align-items: center; }
+.device-usb { color: var(--muted); font-size: 12px; }
+.device-usb span { flex: 1; }
+.device-actions { flex-wrap: wrap; }
+.device-actions .action { padding: 4px 8px; }

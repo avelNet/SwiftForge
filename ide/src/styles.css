@@ -689,3 +689,89 @@ kbd { border: 1px solid #24160f40; border-radius: 4px; padding: 0 4px; font: 12p
 .explorer-root { width: 100%; text-align: start; }
 .explorer-root:hover, .explorer-root:focus-visible { background: var(--raised); }
 .entry-parent { overflow-wrap: anywhere; color: var(--muted); }
+
+.preferences-dialog {
+  width: min(540px, calc(100vw - 28px));
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 18px 52px #0007;
+}
+.preferences-dialog .dialog-heading { padding: 14px 18px; }
+.preferences-nav {
+  display: flex;
+  gap: 4px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--divider);
+}
+.preferences-nav button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+}
+.preferences-nav button[aria-pressed="true"] { color: inherit; border-color: var(--accent); }
+.preferences-nav button:hover, .theme-picker button:hover { background: var(--hover); }
+.preferences-content { padding: 6px 18px; }
+.preferences-dialog .preference-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 6px 0;
+}
+.preference-row + .preference-row { border-top: 1px solid var(--divider); }
+.preferences-dialog select {
+  appearance: none;
+  width: auto;
+  max-width: 56%;
+  min-width: min(130px, 45%);
+  min-height: 32px;
+  padding: 4px 22px 4px 8px;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%) right 12px center / 4px 4px no-repeat,
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%) right 8px center / 4px 4px no-repeat,
+    var(--rail);
+}
+.theme-picker, .accent-picker { display: flex; align-items: center; gap: 6px; }
+.theme-picker { padding: 3px; background: var(--rail); border: 1px solid var(--divider); border-radius: 7px; }
+.theme-picker button { display: flex; align-items: center; gap: 5px; padding: 4px 6px; border-radius: 4px; color: var(--muted); }
+.theme-picker button[aria-pressed="true"] { background: var(--hover); color: inherit; }
+.accent-picker button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: #171522;
+}
+.accent-picker [data-swatch="orange"] { background: #efad86; }
+.accent-picker [data-swatch="blue"] { background: #9ebeff; }
+.accent-picker [data-swatch="violet"] { background: #c6aeff; }
+.accent-picker [data-swatch="green"] { background: #a9dfb1; }
+.accent-picker button[aria-pressed="true"] { outline: 1px solid var(--accent); outline-offset: 2px; }
+.preferences-dialog input[role="switch"] {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.preferences-dialog input[role="switch"]::before {
+  position: absolute;
+  inset: 3px auto 3px 3px;
+  width: 12px;
+  border-radius: 50%;
+  background: var(--muted);
+  content: "";
+}
+.preferences-dialog input[role="switch"]:checked { background: var(--accent-fill); }
+.preferences-dialog input[role="switch"]:checked::before { translate: 14px; background: var(--accent-ink); }
+.preferences-dialog :is(button, select, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.preferences-footer { padding: 12px 18px; border-top: 1px solid var(--divider); justify-content: space-between; }

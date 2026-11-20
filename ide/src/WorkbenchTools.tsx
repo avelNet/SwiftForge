@@ -1,6 +1,6 @@
 import { useLocale, type InterfaceLanguage } from "./i18n";
 import { invoke } from "@tauri-apps/api/core";
-import { FolderOpenIcon, GithubLogoIcon, XIcon } from "@phosphor-icons/react";
+import { CheckIcon, CodeIcon, FolderOpenIcon, GithubLogoIcon, MoonIcon, PaintBrushIcon, SunIcon, XIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export const accents = ["orange", "blue", "violet", "green"] as const;
@@ -75,13 +75,13 @@ export function WorkbenchMenu({ groups }: { groups: { label: string; items: Menu
   </nav>;
 }
 
-function WorkbenchDialog({ title, close, busy = false, children }: {
-  title: string; close: () => void; busy?: boolean; children: ReactNode;
+function WorkbenchDialog({ title, close, busy = false, className = "", children }: {
+  title: string; close: () => void; busy?: boolean; className?: string; children: ReactNode;
 }) {
   const t = useLocale();
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => dialog.current?.showModal(), []);
-  return <dialog ref={dialog} className="workbench-dialog" aria-label={title} onCancel={event => {
+  return <dialog ref={dialog} className={`workbench-dialog ${className}`} aria-label={title} onCancel={event => {
     event.preventDefault();
     if (!busy) close();
   }}>
@@ -124,42 +124,73 @@ export function Settings({ value, change, close }: {
   value: Preferences; change: (value: Preferences) => void; close: () => void;
 }) {
   const t = useLocale();
-  return <WorkbenchDialog title={t("Settings")} close={close}>
-    <div className="settings-fields">
-      <label>{t("Interface language")}<select value={value.language}
-        onChange={event => change({ ...value, language: event.target.value === "ru" ? "ru" : "en" })}>
-        <option value="en" lang="en">English</option><option value="ru" lang="ru">Русский</option>
-      </select></label>
-      <label>{t("Interface zoom")}<select value={value.zoom}
-        onChange={event => change({ ...value, zoom: Number(event.target.value) })}>
-        {zoomLevels.map(zoom => <option key={zoom} value={zoom}>{zoom}%</option>)}
-      </select></label>
-      <label>{t("Appearance")}<select value={value.theme} onChange={event => change({ ...value, theme: event.target.value === "light" ? "light" : "dark" })}>
-        <option value="dark">Forge Dark</option><option value="light">Studio Light</option>
-      </select></label>
-      <label>{t("Accent color")}<select value={value.accent}
-        onChange={event => change({ ...value, accent: event.target.value as Preferences["accent"] })}>
-        {accents.map((accent, index) => <option key={accent} value={accent}>{t(["Orange", "Blue", "Violet", "Green"][index])}</option>)}
-      </select></label>
-      <label>{t("Code color theme")}<select value={value.syntaxTheme}
-        onChange={event => change({ ...value, syntaxTheme: event.target.value as Preferences["syntaxTheme"] })}>
-        {syntaxThemes.map((theme, index) => <option key={theme} value={theme}>{t(["Match interface", "High contrast"][index])}</option>)}
-      </select></label>
-      <label className="checkbox-label"><input type="checkbox" checked={value.lineNumbers}
-        onChange={event => change({ ...value, lineNumbers: event.target.checked })} /> {t("Show line numbers")}</label>
-      <label>{t("Editor font size")}<input type="number" min={11} max={26} value={value.fontSize} onChange={event => {
-        const number = Number(event.target.value);
-        if (number >= 11 && number <= 26) change({ ...value, fontSize: number });
-      }} /></label>
-      <label>{t("Indentation")}<select value={value.tabSize} onChange={event => change({ ...value, tabSize: Number(event.target.value) })}>
-        <option value={2}>{t("2 spaces")}</option><option value={4}>{t("4 spaces")}</option><option value={8}>{t("8 spaces")}</option>
-      </select></label>
-      <label className="checkbox-label"><input type="checkbox" checked={value.wrap} onChange={event => change({ ...value, wrap: event.target.checked })} /> {t("Wrap long lines")}</label>
-      <label className="checkbox-label"><input type="checkbox" checked={value.minimap} onChange={event => change({ ...value, minimap: event.target.checked })} /> {t("Show editor minimap")}</label>
-      <div className="dialog-actions">
-        <button className="action" onClick={() => change(defaultPreferences)}>{t("Restore defaults")}</button>
-        <button className="action primary" onClick={close}>{t("Done")}</button>
-      </div>
+  const [section, setSection] = useState<"appearance" | "editor">("appearance");
+  return <WorkbenchDialog title={t("Settings")} close={close} className="preferences-dialog">
+    <nav className="preferences-nav" aria-label={t("Settings sections")}>
+      <button type="button" aria-pressed={section === "appearance"} onClick={() => setSection("appearance")}>
+        <PaintBrushIcon size={16} aria-hidden /> {t("Appearance")}
+      </button>
+      <button type="button" aria-pressed={section === "editor"} onClick={() => setSection("editor")}>
+        <CodeIcon size={16} aria-hidden /> {t("Editor")}
+      </button>
+    </nav>
+    <div className="preferences-content">
+      {section === "appearance" ? <>
+        <div className="preference-row">
+          <span>{t("Interface theme")}</span>
+          <div className="theme-picker" role="group" aria-label={t("Interface theme")}>
+            <button aria-pressed={value.theme === "dark"} onClick={() => change({ ...value, theme: "dark" })}>
+              <MoonIcon size={15} aria-hidden /> {t("Dark")}
+            </button>
+            <button aria-pressed={value.theme === "light"} onClick={() => change({ ...value, theme: "light" })}>
+              <SunIcon size={15} aria-hidden /> {t("Light")}
+            </button>
+          </div>
+        </div>
+        <div className="preference-row">
+          <span>{t("Accent color")}</span>
+          <div className="accent-picker" role="group" aria-label={t("Accent color")}>
+            {accents.map((accent, index) => {
+              const label = t(["Orange", "Blue", "Violet", "Green"][index]);
+              return <button key={accent} data-swatch={accent} aria-label={label} title={label}
+                aria-pressed={value.accent === accent} onClick={() => change({ ...value, accent })}>
+                {value.accent === accent && <CheckIcon size={14} weight="bold" aria-hidden />}
+              </button>;
+            })}
+          </div>
+        </div>
+        <label className="preference-row">{t("Interface language")}<select value={value.language}
+          onChange={event => change({ ...value, language: event.target.value === "ru" ? "ru" : "en" })}>
+          <option value="en" lang="en">English</option><option value="ru" lang="ru">Русский</option>
+        </select></label>
+        <label className="preference-row">{t("Interface zoom")}<select value={value.zoom}
+          onChange={event => change({ ...value, zoom: Number(event.target.value) })}>
+          {zoomLevels.map(zoom => <option key={zoom} value={zoom}>{zoom}%</option>)}
+        </select></label>
+      </> : <>
+        <label className="preference-row">{t("Code color theme")}<select value={value.syntaxTheme}
+          onChange={event => change({ ...value, syntaxTheme: event.target.value === "contrast" ? "contrast" : "auto" })}>
+          {syntaxThemes.map((theme, index) => <option key={theme} value={theme}>{t(["Match interface", "High contrast"][index])}</option>)}
+        </select></label>
+        <label className="preference-row">{t("Editor font size")}<select value={value.fontSize}
+          onChange={event => change({ ...value, fontSize: Number(event.target.value) })}>
+          {Array.from({ length: 16 }, (_, index) => index + 11).map(size => <option key={size} value={size}>{size} px</option>)}
+        </select></label>
+        <label className="preference-row">{t("Indentation")}<select value={value.tabSize}
+          onChange={event => change({ ...value, tabSize: Number(event.target.value) })}>
+          <option value={2}>{t("2 spaces")}</option><option value={4}>{t("4 spaces")}</option><option value={8}>{t("8 spaces")}</option>
+        </select></label>
+        <label className="preference-row">{t("Show line numbers")}<input type="checkbox" role="switch" checked={value.lineNumbers}
+          onChange={event => change({ ...value, lineNumbers: event.target.checked })} /></label>
+        <label className="preference-row">{t("Wrap long lines")}<input type="checkbox" role="switch" checked={value.wrap}
+          onChange={event => change({ ...value, wrap: event.target.checked })} /></label>
+        <label className="preference-row">{t("Show editor minimap")}<input type="checkbox" role="switch" checked={value.minimap}
+          onChange={event => change({ ...value, minimap: event.target.checked })} /></label>
+      </>}
+    </div>
+    <div className="dialog-actions preferences-footer">
+      <button className="action" onClick={() => change(defaultPreferences)}>{t("Restore defaults")}</button>
+      <button className="action primary" onClick={close}>{t("Done")}</button>
     </div>
   </WorkbenchDialog>;
 }

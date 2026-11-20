@@ -3,6 +3,9 @@ import { createContext, useContext } from "react";
 export type InterfaceLanguage = "en" | "ru";
 
 const russian: Record<string, string> = {
+  "Settings sections": "Разделы настроек",
+  "Editor": "Редактор",
+  "Interface theme": "Тема интерфейса",
   "Workspace layout": "Режим рабочей области",
   "Code": "Код",
   "Split view": "Код и устройство",

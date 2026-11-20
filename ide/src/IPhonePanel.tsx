@@ -1,18 +1,24 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
+import { AirplayIcon, DeviceMobileIcon, StopIcon, WarningCircleIcon } from "@phosphor-icons/react";
 
 interface Receiver {
   name: string;
   pin: string;
 }
 
-export function IPhonePanel() {
+export function IPhonePanel({ visible, onReceiverChange }: {
+  visible: boolean;
+  onReceiverChange: (active: boolean) => void;
+}) {
   const [receiver, setReceiver] = useState<Receiver | null>(null);
   const [frame, setFrame] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const stopping = useRef(false);
+  const receiving = receiver !== null;
+  useEffect(() => onReceiverChange(receiving), [receiving, onReceiverChange]);
 
   useEffect(() => {
     if (!receiver) return;
@@ -81,31 +87,39 @@ export function IPhonePanel() {
     }
   }
 
+  const connection = error ? "error" : frame ? (stale ? "paused" : "live") : receiver ? "waiting" : "off";
+  const description = frame ? (stale ? "Waiting for new frames" : "Live · control on iPhone") :
+    receiver ? "Waiting for iPhone" : "Receiver off";
+
   return (
-    <aside className="iphone-panel" aria-label="iPhone preview">
-      <header className="iphone-header">
-        <h2>iPhone</h2>
-        <button className={receiver ? undefined : "primary"} disabled={busy} onClick={() => void toggle()}>
-          {receiver ? "Stop mirroring" : "Start mirroring"}
-        </button>
-      </header>
-      <div className="iphone-viewport">
+    <aside className="iphone-panel" id="iphone-preview" aria-label="iPhone preview" hidden={!visible}>
+      <div className="panel-heading iphone-heading">
+        <h2><DeviceMobileIcon size={16} aria-hidden /> iPhone</h2>
+        <span className={`connection-dot ${connection}`} aria-hidden="true" />
+      </div>
+      <div className="device-stage">
         {frame
-          ? <img src={frame} alt="Live screen from the connected iPhone" />
-          : <div className="iphone-instructions">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <rect x="7" y="2.5" width="10" height="19" rx="2.5" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M10 18.5h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-              {receiver
-                ? <><p>Choose <strong>{receiver.name}</strong> in Screen Mirroring on your iPhone.</p>
-                    <p className="pairing-code" aria-label={`AirPlay PIN ${receiver.pin}`}>{receiver.pin}</p></>
-                : <p>Start mirroring to display your iPhone screen here.</p>}
+          ? <div className="iphone-viewport"><img src={frame} alt="Live screen from the connected iPhone" /></div>
+          : <div className="phone-outline" aria-hidden="true">
+              <div className="phone-screen"><AirplayIcon size={36} weight="light" /></div>
             </div>}
       </div>
-      <p className={error ? "iphone-status error" : "iphone-status"} role="status">
-        {error || (frame ? (stale ? "Last frame · waiting for updates" : "Live · control on iPhone") : receiver ? "Waiting for iPhone" : "Receiver off")}
-      </p>
+      <div className="iphone-controls">
+        {error
+          ? <p className="iphone-error" role="alert"><WarningCircleIcon size={16} aria-hidden />{error}</p>
+          : receiver && !frame
+            ? <div className="pairing-instructions">
+                <p>Choose <strong>{receiver.name}</strong> in Screen Mirroring.</p>
+                <span className="pairing-code" aria-label={`AirPlay PIN ${receiver.pin}`}>{receiver.pin}</span>
+              </div>
+            : !receiver && <p className="iphone-instructions">See your physical iPhone here over AirPlay.</p>}
+        <button className={receiver ? "action mirror-action" : "action primary mirror-action"} disabled={busy}
+          onClick={() => void toggle()}>
+          {receiver ? <StopIcon size={16} aria-hidden /> : <AirplayIcon size={16} aria-hidden />}
+          {receiver ? "Stop mirroring" : "Start mirroring"}
+        </button>
+        <p className="iphone-status" role="status">{description}</p>
+      </div>
     </aside>
   );
 }

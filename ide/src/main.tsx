@@ -10,7 +10,7 @@ import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
-  CaretRightIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
+  CaretRightIcon, GithubLogoIcon, ListNumbersIcon, ArrowsLeftRightIcon, ArrowBendRightDownIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
   FolderOpenIcon, GearSixIcon, MagnifyingGlassIcon, PlusIcon, TerminalIcon, TerminalWindowIcon, WarningCircleIcon, XIcon,
 } from "@phosphor-icons/react";
 import "@fontsource/geist/400.css";
@@ -19,6 +19,7 @@ import "@fontsource/geist/600.css";
 import "@fontsource/geist-mono/400.css";
 import "./styles.css";
 import { IPhonePanel } from "./IPhonePanel";
+import { GitHubSidebar } from "./GitHubSidebar";
 import { DeviceTools } from "./DeviceTools";
 import { TerminalPane } from "./TerminalPane";
 import { NewProject, useBuild } from "./BuildWorkspace";
@@ -84,6 +85,13 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [showExplorer, setShowExplorer] = useState(true);
+  const [activeSidebar, setActiveSidebar] = useState<"explorer" | "github">("explorer");
+  const [gitRevision, setGitRevision] = useState(0);
+
+  function toggleSidebar(side: "explorer" | "github") {
+    setShowExplorer(activeSidebar !== side || !showExplorer);
+    setActiveSidebar(side);
+  }
   const [showPhone, setShowPhone] = useState(true);
   const [mirrorActive, setMirrorActive] = useState(false);
   const [explorerWidth, setExplorerWidth] = useState(220);
@@ -313,6 +321,7 @@ function App() {
       await invoke("save_document", { root, path: active, text, previous: doc.diskText });
       doc.diskText = text;
       doc.saved = text;
+      setGitRevision(value => value + 1);
       redraw(value => value + 1);
     });
   }
@@ -349,7 +358,7 @@ function App() {
           break;
         case "b":
           event.preventDefault();
-          if (!event.repeat) setShowExplorer(value => !value);
+          if (!event.repeat) toggleSidebar(activeSidebar);
           break;
       }
     };
@@ -425,7 +434,11 @@ function App() {
       </header>
 
       <nav className="activity-rail" aria-label="Workspace tools">
-        <ExplorerButton visible={showExplorer} onClick={() => setShowExplorer(value => !value)} />
+        <ExplorerButton visible={showExplorer && activeSidebar === "explorer"} onClick={() => toggleSidebar("explorer")} />
+        <button className="rail-action" aria-label="GitHub and source control" title="GitHub and source control"
+          aria-pressed={showExplorer && activeSidebar === "github"} onClick={() => toggleSidebar("github")}>
+          <GithubLogoIcon size={21} />
+        </button>
         <button className="rail-action" aria-label="Find in current file" title="Find in current file · Ctrl+F"
           disabled={!active} onClick={() => void instance.current?.getAction("actions.find")?.run()}>
           <MagnifyingGlassIcon size={21} aria-hidden />
@@ -441,7 +454,7 @@ function App() {
         </button>
       </nav>
 
-      <aside aria-label="Project files" id="project-explorer" className="explorer" hidden={!showExplorer}>
+      <aside aria-label="Project files" id="project-explorer" className="explorer" hidden={!showExplorer || activeSidebar !== "explorer"}>
         <div className="panel-heading">
           <h2>Explorer</h2>
           <button className="icon-button" onClick={openProject} disabled={busy} aria-label="Open project folder" title="Open project folder">
@@ -453,6 +466,11 @@ function App() {
           <FileTree path="" folders={folders} active={active} onSelect={select} />
         </>}
       </aside>
+      {activeSidebar === "github" && <aside className="explorer" aria-label="GitHub workspace" hidden={!showExplorer}>
+        <GitHubSidebar root={root} revision={gitRevision}
+          clone={() => { if (canSwitch()) setCloneProject(true); }}
+          open={path => { if (root) void run(() => openFile(root, path)); }} />
+      </aside>}
       {showExplorer && <PanelDivider panel="project explorer" side="left" width={explorerWidth} onResize={resizeExplorer} />}
 
       <section className="workspace" aria-label="Code workspace">
@@ -469,10 +487,20 @@ function App() {
             </div>
           ))}
         </nav>
-        {active && <div className="breadcrumbs" aria-label="Current file path">
-          {[project, ...active.split("/")].filter(Boolean).map((name, index) => (
-            <span key={`${index}:${name}`}>{index > 0 && <CaretRightIcon size={11} aria-hidden />}{name}</span>
-          ))}
+        {active && <div className="editor-navigation">
+          <div className="breadcrumbs" aria-label="Current file path">
+            {[project, ...active.split("/")].filter(Boolean).map((name, index) => (
+              <span key={`${index}:${name}`}>{index > 0 && <CaretRightIcon size={11} aria-hidden />}{name}</span>
+            ))}
+          </div>
+          <div className="editor-actions" aria-label="Editor commands">
+            <button className="icon-button" aria-label="Find and replace" title="Find and replace · Ctrl+H"
+              onClick={() => void instance.current?.getAction("editor.action.startFindReplaceAction")?.run()}><ArrowsLeftRightIcon size={16} /></button>
+            <button className="icon-button" aria-label="Go to line" title="Go to line · Ctrl+G"
+              onClick={() => void instance.current?.getAction("editor.action.gotoLine")?.run()}><ListNumbersIcon size={16} /></button>
+            <button className="icon-button" aria-label="Go to definition" title="Go to definition · F12" disabled={activeLanguage !== "swift"}
+              onClick={() => void instance.current?.getAction("editor.action.revealDefinition")?.run()}><ArrowBendRightDownIcon size={16} /></button>
+          </div>
         </div>}
         <div className="editor-area">
           <div ref={host} className="editor" aria-hidden={!active} />

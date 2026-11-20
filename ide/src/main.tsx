@@ -380,16 +380,20 @@ function App() {
     setTabs(remaining);
   }
 
-  function save() {
-    if (!root || !active || !dirty(active)) return;
+  function save(all = false) {
+    if (!root) return;
+    const paths = all ? tabs.filter(dirty) : active && dirty(active) ? [active] : [];
+    if (!paths.length) return;
     void run(async () => {
-      const doc = documents.current.get(active)!;
-      const text = doc.model.getValue(undefined, true);
-      await invoke("save_document", { root, path: active, text, previous: doc.diskText });
-      doc.diskText = text;
-      doc.saved = text;
-      setGitRevision(value => value + 1);
-      redraw(value => value + 1);
+      for (const path of paths) {
+        const doc = documents.current.get(path)!;
+        const text = doc.model.getValue(undefined, true);
+        await invoke("save_document", { root, path, text, previous: doc.diskText });
+        doc.diskText = text;
+        doc.saved = text;
+        setGitRevision(value => value + 1);
+        redraw(value => value + 1);
+      }
     });
   }
 
@@ -420,6 +424,9 @@ function App() {
         if (event.code === "KeyB" && root) {
           event.preventDefault();
           if (!event.repeat) void build.build();
+        } else if (event.code === "KeyS") {
+          event.preventDefault();
+          if (!event.repeat) save(true);
         }
         return;
       }
@@ -436,6 +443,11 @@ function App() {
         case "Comma":
           event.preventDefault();
           setSettings(true);
+          break;
+        case "KeyW":
+          if (!active) break;
+          event.preventDefault();
+          if (!event.repeat) close(active);
           break;
         case "KeyS":
           event.preventDefault();
@@ -484,7 +496,9 @@ function App() {
           { label: t("File"), items: [
             { name: t("New project"), shortcut: "Ctrl+N", run: startNewProject },
             { name: t("Open folder"), shortcut: "Ctrl+O", run: openProject },
-            { name: t("Save"), shortcut: "Ctrl+S", enabled: edited, run: save },
+            { name: t("Save"), shortcut: "Ctrl+S", enabled: edited, run: () => save() },
+            { name: t("Save all"), shortcut: "Ctrl+Shift+S", enabled: tabs.some(dirty), run: () => save(true) },
+            { name: t("Close tab"), shortcut: "Ctrl+W", enabled: !!active, run: () => { if (active) close(active); } },
             { name: t("Settings"), shortcut: "Ctrl+,", run: () => setSettings(true) },
           ] },
           { label: t("Edit"), items: [
@@ -546,7 +560,7 @@ function App() {
           <button className="action" onClick={openProject} disabled={busy} title={t("Open folder") + " · Ctrl+O"}>
             <FolderOpenIcon size={17} aria-hidden /><span>{t("Open folder")}</span>
           </button>
-          <button className="action" onClick={save} disabled={busy || !edited} title={t("Save") + " · Ctrl+S"}>
+          <button className="action" onClick={() => save()} disabled={busy || !edited} title={t("Save") + " · Ctrl+S"}>
             <FloppyDiskIcon size={17} aria-hidden /><span>{t("Save")}</span>
           </button>
         </div>

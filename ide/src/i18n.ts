@@ -19,6 +19,7 @@ const russian: Record<string, string> = {
   "Green": "Зелёный",
   "Code color theme": "Цветовая тема кода",
   "Peek definition": "Посмотреть определение",
+  "Save all": "Сохранить всё",
   "Duplicate line": "Дублировать строку",
   "New file": "Новый файл",
   "New folder": "Новая папка",

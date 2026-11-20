@@ -14,6 +14,7 @@ export function IPhonePanel({ visible, onReceiverChange }: {
   const [receiver, setReceiver] = useState<Receiver | null>(null);
   const [frame, setFrame] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
+  const [landscape, setLandscape] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const stopping = useRef(false);
@@ -98,11 +99,14 @@ export function IPhonePanel({ visible, onReceiverChange }: {
         <span className={`connection-dot ${connection}`} aria-hidden="true" />
       </div>
       <div className="device-stage">
-        {frame
-          ? <div className="iphone-viewport"><img src={frame} alt="Live screen from the connected iPhone" /></div>
-          : <div className="phone-outline" aria-hidden="true">
-              <div className="phone-screen"><AirplayIcon size={36} weight="light" /></div>
-            </div>}
+        <div className={`phone-outline${frame ? " showing-video" : ""}${frame && landscape ? " landscape" : ""}`}>
+          <div className="phone-screen">
+            {frame
+              ? <div className="iphone-viewport"><img src={frame} alt="Live screen from the connected iPhone"
+                  onLoad={event => setLandscape(event.currentTarget.naturalWidth > event.currentTarget.naturalHeight)} /></div>
+              : <AirplayIcon size={36} weight="light" aria-hidden />}
+          </div>
+        </div>
       </div>
       <div className="iphone-controls">
         {error

@@ -8,6 +8,7 @@ use std::{
 use tauri::{AppHandle, Manager, State};
 
 mod build;
+mod github;
 mod language;
 mod mirror;
 use tauri_plugin_dialog::DialogExt;
@@ -160,6 +161,9 @@ fn main() {
             build::cancel_build,
             build::export_ipa,
             build::toolchain_status,
+            github::github_clone,
+            github::github_status,
+            github::github_open,
             language::language_start,
             language::language_send,
             language::language_stop,

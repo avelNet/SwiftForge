@@ -3,6 +3,11 @@ import { createContext, useContext } from "react";
 export type InterfaceLanguage = "en" | "ru";
 
 const russian: Record<string, string> = {
+  "Refresh files": "Обновить файлы",
+  "File actions": "Действия с файлами",
+  "Show in file manager": "Показать в файловом менеджере",
+  "Copy relative path": "Копировать относительный путь",
+  "Copy full path": "Копировать полный путь",
   "Settings sections": "Разделы настроек",
   "Editor": "Редактор",
   "Interface theme": "Тема интерфейса",

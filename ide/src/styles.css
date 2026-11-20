@@ -775,3 +775,19 @@ kbd { border: 1px solid #24160f40; border-radius: 4px; padding: 0 4px; font: 12p
 .preferences-dialog input[role="switch"]:checked::before { translate: 14px; background: var(--accent-ink); }
 .preferences-dialog :is(button, select, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .preferences-footer { padding: 12px 18px; border-top: 1px solid var(--divider); justify-content: space-between; }
+
+.file-context {
+  position: fixed;
+  z-index: 20;
+  display: grid;
+  width: 232px;
+  padding: 4px;
+  border: 1px solid var(--divider);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px #0006;
+}
+.file-context button { padding: 6px 9px; border-radius: 4px; text-align: start; }
+.file-context button:hover, .file-context button:focus-visible { background: var(--hover); }
+#project-explorer .panel-heading { padding-inline: 8px; position: sticky; top: 0; z-index: 1; background: var(--rail); }
+#project-explorer .explorer-actions { gap: 1px; }

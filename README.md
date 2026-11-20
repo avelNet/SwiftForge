@@ -6,7 +6,7 @@
 | --- | --- |
 | Нативная компиляция Swift на Ubuntu | SwiftPM 6.4.2 собрал ELF, который вывел `SwiftForge: Linux Swift OK` |
 | Сборка пакета iOS | Собран неподписанный IPA. Проверены ZIP, Info.plist и исполняемый Mach-O ARM64 для iOS 18+ со Swift-функцией |
-| Сборка SwiftUI через xtool | Сгенерирован проект. Darwin SDK отсутствует, сборка остановилась при запросе Xcode.xip |
+| Сборка SwiftUI через xtool | IPA собран на Ubuntu из проекта SwiftPM с iPhoneOS 27.2 SDK и установлен на физический iPhone |
 | iPhone по USB | Сопряжение подтверждено для iOS 26.4.2. После сбоя usbmuxd связь восстановлена, режим разработчика включён |
 | Подпись, установка и запуск | IPA подписан и установлен через iLoader 2.4.2 на Ubuntu. Запуск и успешный вызов Swift подтверждены экраном и списком процессов |
 
@@ -33,7 +33,7 @@ LLVM_OBJDUMP="$llvm/llvm-objdump" LLVM_NM="$llvm/llvm-nm" ./ios-probe/verify.sh
 
 - Нужны сертификат разработки, соответствующий ключ и provisioning profile с разрешением для устройства и идентификатора приложения. Инструмент sideload может выбрать итоговый идентификатор при переподписи. Для личного теста Apple описывает бесплатную Personal Team с профилями на 7 дней. Инструменты Linux для бесплатной автоматической выдачи используют меняющиеся частные API Apple. [Apple Developer Account](https://developer.apple.com/help/account/basics/about-your-developer-account/)
 - Бесплатная подпись и установка на Ubuntu выполнены через iLoader 2.4.2 и импорт собственного IPA. Для запуска iLoader на этой Ubuntu сработал извлечённый пакет `.deb` с системным WebKit. AppImage упал с `EGL_BAD_PARAMETER`. Для запуска приложения на iPhone требуется режим разработчика. [iLoader 2.4.2](https://github.com/nab138/iloader/releases/tag/v2.4.2) · [Apple Developer Mode](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device)
-- Сборка обычного SwiftUI-приложения вынесена в `ios-probe/SDKProbe`. Для неё xtool 1.24.0 ожидает Xcode 27.1 с портала Apple и Swift 6.4.x. Официальный архив требует входа в Apple Account. Журнал реальной попытки находится в `evidence/xtool-sdk-tty.txt`. [Инструкция xtool 1.24.0](https://github.com/xtool-org/xtool/blob/1.24.0/Documentation/xtool.docc/Installation-Linux.md)
+- Сборка обычного SwiftUI-приложения вынесена в `ios-probe/SDKProbe`. Проверенная конфигурация использует xtool 1.24.0, Swift 6.4.2 и официальный архив Xcode 27.2. Официальный архив требует входа в Apple Account. [Журнал сборки](evidence/swiftui-xtool-build.txt) [Инструкция xtool 1.24.0](https://github.com/xtool-org/xtool/blob/1.24.0/Documentation/xtool.docc/Installation-Linux.md)
 
 ## Инструменты и перспективы для SwiftForge
 
@@ -44,7 +44,7 @@ LLVM_OBJDUMP="$llvm/llvm-objdump" LLVM_NM="$llvm/llvm-nm" ./ios-probe/verify.sh
 | CrossCode | IDE с открытым исходным кодом, генерация Darwin SDK из Xcode 26, сборка SwiftPM, подпись и установка через isideload. Полезный ориентир для интеграции редактора, LSP и устройства. [CrossCode](https://github.com/nab138/CrossCode) |
 | KXBuild | Поставщик заявляет поддержку проектов Xcode, SwiftPM, подписи IPA и установки. У CLI есть отдельная активация лицензии и пробный период. В эксперименте его не запускали. [KXBuild](https://github.com/kxbuild/kxbuild) |
 
-Редактор, LSP, SwiftPM и локальные Linux-сборки подходят для коммерческой IDE. Собранный IPA показывает, что Ubuntu может создавать нативный код для iPhone даже без Apple SDK, но узкие заглушки этого теста непригодны как универсальный SDK для разработки приложений. Штатную поддержку SwiftUI и Xcode-проектов пока обещать нельзя.
+Редактор, LSP, SwiftPM и локальные Linux-сборки подходят для коммерческой IDE. Собранный IPA показывает, что Ubuntu может создавать нативный код для iPhone даже без Apple SDK, но узкие заглушки этого теста непригодны как универсальный SDK для разработки приложений. Проверена сборка конкретного SwiftUI-проекта на SwiftPM. Совместимость произвольных SwiftUI- и Xcode-проектов пока открыта.
 
 Работа с SDK Apple — отдельный вопрос. В Xcode and Apple SDKs Agreement, §§ 2.2, 2.5 и 2.7, Apple ограничивает использование Apple Software компьютерами Apple и запрещает его неразрешённое распространение. Самостоятельная загрузка архива пользователем не снимает вопрос о допустимости этого сценария на обычном ПК. Это ограничение нужно разрешить до коммерческой поставки интеграции с Apple SDK. Публикация в App Store также требует отдельного членства Apple, вне бюджета данного теста. [Лицензия Xcode и Apple SDK](https://www.apple.com/legal/sla/docs/xcode.pdf) · [Apple Developer Account](https://developer.apple.com/help/account/basics/about-your-developer-account/)
 
@@ -63,8 +63,12 @@ LLVM_OBJDUMP="$llvm/llvm-objdump" LLVM_NM="$llvm/llvm-nm" ./ios-probe/verify.sh 
 
 В iLoader выберите iPhone и импортируйте `ios-probe/dist/SwiftForgeCounter.ipa` для подписи и установки. На телефоне откройте **SwiftForge Counter**, дважды нажмите **Increment** и введите `SwiftForge test`. Закройте приложение через переключатель и откройте заново. Ожидаются `Count: 2` и введённый текст. Проверка пакета на Ubuntu и четыре теста Swift-функции прошли. Установка через iLoader и запущенный процесс подтверждены по USB. На физическом iPhone владелец проверил кнопку, ввод текста и сохранение обоих значений после полного закрытия и повторного запуска приложения. [Журнал установки](evidence/interactive-device.txt) [Журнал сборки](evidence/interactive-build.txt) · [Журнал тестов](evidence/interactive-linux-check.txt)
 
-Отдельная [версия на SwiftUI](ios-probe/SDKProbe/Sources/SDKProbe/ContentView.swift) реализует те же элементы с `Button`, `TextField` и `@AppStorage`. Попытка `xtool dev build --ipa` остановилась на отсутствующем Darwin SDK. Прямая проверка `swiftc` остановилась на отсутствии стандартной библиотеки для обычного iOS-таргета. Рабочий интерактивный IPA использует UIKit и Foundation на устройстве. Сборка произвольных SwiftUI-приложений, ресурсов Xcode и расширений этим результатом не подтверждена. [Журнал SwiftUI](evidence/interactive-swiftui.txt)
+Отдельная [версия на SwiftUI](ios-probe/SDKProbe/Sources/SDKProbe/ContentView.swift) реализует те же элементы с `Button`, `TextField` и `@AppStorage`. Первая попытка `xtool dev build --ipa` остановилась на отсутствующем Darwin SDK. Прямая проверка `swiftc` остановилась на отсутствии стандартной библиотеки для обычного iOS-таргета. Рабочий интерактивный IPA использует UIKit и Foundation на устройстве. Сборка произвольных SwiftUI-приложений, ресурсов Xcode и расширений этим результатом не подтверждена. [Первая попытка без SDK](evidence/interactive-swiftui.txt) · [Успешная сборка с SDK](evidence/swiftui-xtool-build.txt)
 
 ## Экран физического iPhone на Ubuntu
 
 Проверено локальное зеркалирование через AirPlay и UxPlay из пакета Ubuntu 1.73.2-1. После подключения через «Повтор экрана» на Ubuntu видно SwiftForge Counter, запущенный на физическом iPhone. Пользователь взаимодействует с элементами на телефоне, а UxPlay отображает видеопоток в отдельном окне. Встраивание потока в IDE будет отдельной задачей. [Журнал теста](evidence/iphone-mirroring.txt)
+
+## SwiftUI с официальным SDK
+
+Архив `Xcode_27.2.xip` с Apple Developer передан в `xtool sdk install`. Локальный Darwin SDK зарегистрирован в SwiftPM. Команда `xtool dev build --ipa` из `ios-probe/SDKProbe` произвела `xtool/SDKProbe.ipa`. Внутри проверены Mach-O ARM64, минимальная версия iOS 17.0 и динамическая ссылка на системный SwiftUI. Подпись и установка выполнены в iLoader. Установка и запущенный процесс SDKProbe на iOS 26.4.2 подтверждены по USB. В зеркале UxPlay на Ubuntu видны нативный экран SwiftUI и изменение счётчика. [Журнал сборки](evidence/swiftui-xtool-build.txt) · [Проверка на iPhone](evidence/swiftui-device.txt)

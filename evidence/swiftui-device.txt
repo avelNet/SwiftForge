@@ -1,0 +1,8 @@
+iPhone iOS 26.4.2, Developer Mode enabled.
+Официальный iPhoneOS 27.2 SDK извлечён из Xcode_27.2.xip через xtool на Ubuntu.
+iLoader 2.4.2: InstallComplete.
+ideviceinstaller list: dev.swiftforge.swiftui.[Team ID скрыт], "1.0.0", "SDKProbe".
+idevicesyslog pidlist: 843 SDKProbe.
+UxPlay: raop_rtp_mirror starting mirroring.
+В окне Ubuntu виден SwiftUI-интерфейс SDKProbe: Count: 3, Increment и Enter a note.
+Начальное значение счётчика на новой установке — 0, отображаемое значение подтвердило работу обработчика кнопки.

@@ -1,0 +1,39 @@
+Ubuntu 26.04.1 x86_64, Swift 6.4.2, xtool 1.24.0.
+SDK source: Apple Developer Xcode_27.2.xip.
+xtool sdk install <archive>: exit 0.
+[Finalizing SDKs]
+- iPhoneOS27.2.sdk
+[Writing metadata]
+
+xtool dev build --ipa: exit 0.
+Building for debugging...
+[Pre-planning 1 / 67]
+[Planning deferred tasks]
+[20 / 32] SDKProbe
+[31 / 98]
+[40 / 98]
+[42 / 98]
+[43 / 98]
+[47 / 98]
+[52 / 98]
+[60 / 98]
+[75 / 98]
+[76 / 98]
+[80 / 98]
+[82 / 98]
+[86 / 98] SDKProbe
+[94 / 98] SDKProbe
+[97 / 98] SDKProbe-App-product
+Build complete! (6.78 secs)
+Planning...
+[LSP] Created .bsp/xtool.json for enhanced IDE support. You may
+      need to restart your editor for the change to take effect.
+      You can disable this with `skipLSP: true` in xtool.yml.
+Packaging...
+Wrote to ./ios-probe/SDKProbe/xtool/SDKProbe.ipa
+
+Archive: verified with unzip -t.
+Bundle: dev.swiftforge.swiftui, minimum iOS 17.0.
+Mach-O: ARM64 iOS executable, linked to /System/Library/Frameworks/SwiftUI.framework/SwiftUI.
+LC_BUILD_VERSION: platform ios, sdk field 17.0, minos 17.0.
+3ac16de6520f45d98c067f7427d5c08411664350fcbc0781b454d0aa6727506f  ios-probe/SDKProbe/xtool/SDKProbe.ipa

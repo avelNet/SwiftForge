@@ -7,6 +7,7 @@ use std::{
 };
 use tauri::{AppHandle, Manager, State};
 
+mod build;
 mod mirror;
 use tauri_plugin_dialog::DialogExt;
 
@@ -143,6 +144,7 @@ fn save_document(
 fn main() {
     tauri::Builder::default()
         .manage(Workspace::default())
+        .manage(build::Build::default())
         .manage(mirror::Mirror::default())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
@@ -150,6 +152,12 @@ fn main() {
             list_directory,
             read_document,
             save_document,
+            build::create_project,
+            build::choose_directory,
+            build::build_project,
+            build::cancel_build,
+            build::export_ipa,
+            build::toolchain_status,
             mirror::mirror_start,
             mirror::mirror_next,
             mirror::mirror_stop
@@ -159,6 +167,7 @@ fn main() {
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
                 let _ = mirror::mirror_stop(app.state());
+                let _ = build::cancel_build(app.state());
             }
         });
 }

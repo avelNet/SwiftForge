@@ -11,7 +11,7 @@ import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   CaretRightIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
-  FolderOpenIcon, MagnifyingGlassIcon, WarningCircleIcon, XIcon,
+  FolderOpenIcon, MagnifyingGlassIcon, PlusIcon, TerminalWindowIcon, WarningCircleIcon, XIcon,
 } from "@phosphor-icons/react";
 import "@fontsource/geist/400.css";
 import "@fontsource/geist/500.css";
@@ -19,6 +19,7 @@ import "@fontsource/geist/600.css";
 import "@fontsource/geist-mono/400.css";
 import "./styles.css";
 import { IPhonePanel } from "./IPhonePanel";
+import { NewProject, useBuild } from "./BuildWorkspace";
 import { DirectoryGlyph, ExplorerButton, FileGlyph, PanelDivider, workbenchTheme } from "./workbench";
 
 self.MonacoEnvironment = {
@@ -71,6 +72,7 @@ function App() {
   const [folders, setFolders] = useState(new Map<string, Entry[]>());
   const [tabs, setTabs] = useState<string[]>([]);
   const [active, setActive] = useState<string | null>(null);
+  const [newProject, setNewProject] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [showExplorer, setShowExplorer] = useState(true);
@@ -140,29 +142,52 @@ function App() {
     }
   }
 
-  function openProject() {
+  const build = useBuild(root, () => {
+    if (!tabs.some(dirty)) return true;
+    setNotice("Save all modified files before building.");
+    return false;
+  });
+
+  async function adoptProject(next: string) {
+    if (next === root) return;
+    instance.current?.setModel(null);
+    for (const doc of documents.current.values()) {
+      doc.subscription.dispose();
+      doc.model.dispose();
+    }
+    documents.current.clear();
+    views.current.clear();
+    displayed.current = null;
+    setActive(null);
+    setTabs([]);
+    setFolders(new Map());
+    setRoot(next);
+    const entries = await invoke<Entry[]>("list_directory", { root: next, path: "" });
+    setFolders(new Map([["", entries]]));
+  }
+
+  function canSwitch() {
+    if (build.running) {
+      setNotice("Finish or cancel the current build before switching projects.");
+      return false;
+    }
     if (tabs.some(dirty)) {
       setNotice("Save your changes before switching projects.");
-      return;
+      return false;
     }
+    return true;
+  }
+
+  function openProject() {
+    if (!canSwitch()) return;
     void run(async () => {
       const next = await invoke<string | null>("open_workspace");
-      if (!next || next === root) return;
-      instance.current?.setModel(null);
-      for (const doc of documents.current.values()) {
-        doc.subscription.dispose();
-        doc.model.dispose();
-      }
-      documents.current.clear();
-      views.current.clear();
-      displayed.current = null;
-      setActive(null);
-      setTabs([]);
-      setFolders(new Map());
-      setRoot(next);
-      const entries = await invoke<Entry[]>("list_directory", { root: next, path: "" });
-      setFolders(new Map([["", entries]]));
+      if (next) await adoptProject(next);
     });
+  }
+
+  function startNewProject() {
+    if (canSwitch()) setNewProject(true);
   }
 
   function select(entry: Entry) {
@@ -221,11 +246,15 @@ function App() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (!event.ctrlKey && !event.metaKey || event.altKey || event.shiftKey) return;
+      if (newProject || (!event.ctrlKey && !event.metaKey) || event.altKey || event.shiftKey) return;
       switch (event.key.toLowerCase()) {
         case "s":
           event.preventDefault();
           save();
+          break;
+        case "n":
+          event.preventDefault();
+          if (!event.repeat) startNewProject();
           break;
         case "o":
           event.preventDefault();
@@ -262,12 +291,14 @@ function App() {
           <span>SwiftForge</span>
         </div>
         <div className="toolbar-actions">
+          <button className="action" onClick={startNewProject} disabled={busy} title="New project · Ctrl+N"><PlusIcon size={17} /> New project</button>
           <button className={root ? "action" : "action primary"} onClick={openProject} disabled={busy} title="Open folder · Ctrl+O">
             <FolderOpenIcon size={17} aria-hidden /> Open folder
           </button>
           <button className="action" onClick={save} disabled={busy || !edited} title="Save · Ctrl+S">
             <FloppyDiskIcon size={17} aria-hidden /> Save
           </button>
+          {build.controls}
         </div>
       </header>
 
@@ -277,6 +308,8 @@ function App() {
           disabled={!active} onClick={() => void instance.current?.getAction("actions.find")?.run()}>
           <MagnifyingGlassIcon size={21} aria-hidden />
         </button>
+        <button className="rail-action" aria-label="Toggle build output" title="Build output" aria-pressed={build.visible}
+          onClick={() => build.setVisible(!build.visible)}><TerminalWindowIcon size={21} aria-hidden /></button>
         <button className="rail-action device-toggle" aria-label="Toggle iPhone panel" aria-controls="iphone-preview"
           title={mirrorActive ? "iPhone preview · receiver active" : "iPhone preview"} aria-pressed={showPhone}
           data-active={mirrorActive} onClick={() => setShowPhone(value => !value)}>
@@ -325,11 +358,13 @@ function App() {
             <p>{root ? "Choose a source file in Explorer." : "Choose an existing project folder to start editing."}</p>
             {root && !showExplorer
               ? <button className="action" onClick={() => setShowExplorer(true)}>Show Explorer</button>
-              : !root && <button className="action primary" onClick={openProject} disabled={busy}>
-                <FolderOpenIcon size={17} aria-hidden /> Open folder <kbd>Ctrl+O</kbd>
-              </button>}
+              : !root && <div className="welcome-actions">
+                  <button className="action primary" onClick={startNewProject} disabled={busy}><PlusIcon size={17} /> New project</button>
+                  <button className="action" onClick={openProject} disabled={busy}><FolderOpenIcon size={17} /> Open folder</button>
+                </div>}
           </div>}
         </div>
+        {build.panel}
       </section>
 
       {showPhone && <PanelDivider panel="iPhone preview" side="right" width={phoneWidth} onResize={resizePhone} />}
@@ -345,6 +380,10 @@ function App() {
           <span>UTF-8</span><span>{languageName}</span>
         </div>}
       </footer>
+      {newProject && <NewProject onCancel={() => setNewProject(false)} onCreate={async next => {
+        await adoptProject(next);
+        setNewProject(false);
+      }} />}
     </main>
   );
 }

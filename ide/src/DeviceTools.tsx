@@ -1,3 +1,4 @@
+import { useLocale } from "./i18n";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { ArrowClockwiseIcon, DownloadSimpleIcon, PlugsIcon, TerminalWindowIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
@@ -10,6 +11,7 @@ export function DeviceTools({ artifact, saveIPA, showOutput, write }: {
   showOutput: () => void;
   write: (line: string) => void;
 }) {
+  const t = useLocale();
   const [usb, setUsb] = useState<Usb | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -33,7 +35,7 @@ export function DeviceTools({ artifact, saveIPA, showOutput, write }: {
       const path = await saveIPA();
       if (!path) return;
       await invoke("open_iloader");
-      setMessage(`In iLoader, import ${path.split("/").at(-1)} and choose your iPhone.`);
+      setMessage(t("In iLoader, import {file} and choose your iPhone.", { file: path.split("/").at(-1) ?? path }));
     } catch (error) {
       setMessage(String(error));
     } finally {
@@ -64,17 +66,17 @@ export function DeviceTools({ artifact, saveIPA, showOutput, write }: {
     }
   }
 
-  return <section className="device-tools" aria-label="USB device tools">
+  return <section className="device-tools" aria-label={t("USB device tools")}>
     <div className="device-usb">
       <PlugsIcon size={16} aria-hidden />
       <span>{usb?.count === 1 ? [usb.model || "iPhone", usb.version && `iOS ${usb.version}`].filter(Boolean).join(" · ") :
-        usb?.count ? `${usb.count} devices over USB` : "No iPhone over USB"}</span>
-      <button className="icon-button" aria-label="Refresh USB devices" title="Refresh USB devices" onClick={() => void refresh()}><ArrowClockwiseIcon size={15} /></button>
+        usb?.count ? t("{count} devices over USB", { count: usb.count }) : t("No iPhone over USB")}</span>
+      <button className="icon-button" aria-label={t("Refresh USB devices")} title={t("Refresh USB devices")} onClick={() => void refresh()}><ArrowClockwiseIcon size={15} /></button>
     </div>
     {artifact && <div className="device-actions">
-      <button className="action" disabled={busy} onClick={() => void install()}><DownloadSimpleIcon size={15} /> Install via iLoader</button>
+      <button className="action" disabled={busy} onClick={() => void install()}><DownloadSimpleIcon size={15} /> {t("Install via iLoader")}</button>
       <button className="action" disabled={!logging && usb?.count !== 1} onClick={() => void toggleLogs()}>
-        <TerminalWindowIcon size={15} /> {logging ? "Stop logs" : "Logs"}
+        <TerminalWindowIcon size={15} /> {logging ? t("Stop logs") : t("Logs")}
       </button>
     </div>}
     {message && <p className="iphone-status" role="status">{message}</p>}

@@ -4,7 +4,7 @@ import { FolderOpenIcon, GithubLogoIcon, XIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export const accents = ["orange", "blue", "violet", "green"] as const;
-export const syntaxThemes = ["auto", "vs", "vs-dark", "hc-black", "hc-light"] as const;
+export const syntaxThemes = ["auto", "contrast"] as const;
 
 export interface Preferences {
   accent: typeof accents[number];
@@ -27,7 +27,7 @@ export function loadPreferences(): Preferences {
     const value = JSON.parse(localStorage.getItem("swiftforge.preferences") ?? "{}");
     return {
       accent: accents.includes(value.accent) ? value.accent : "orange",
-      syntaxTheme: syntaxThemes.includes(value.syntaxTheme) ? value.syntaxTheme : "auto",
+      syntaxTheme: value.syntaxTheme === "contrast" || value.syntaxTheme === "hc-black" || value.syntaxTheme === "hc-light" ? "contrast" : "auto",
       lineNumbers: value.lineNumbers !== false,
       language: value.language === "ru" ? "ru" : "en",
       zoom: zoomLevels.includes(value.zoom) ? value.zoom : 100,
@@ -115,7 +115,7 @@ export function Settings({ value, change, close }: {
       </select></label>
       <label>{t("Code color theme")}<select value={value.syntaxTheme}
         onChange={event => change({ ...value, syntaxTheme: event.target.value as Preferences["syntaxTheme"] })}>
-        {syntaxThemes.map((theme, index) => <option key={theme} value={theme}>{t(["Match interface", "Light", "Dark", "High contrast dark", "High contrast light"][index])}</option>)}
+        {syntaxThemes.map((theme, index) => <option key={theme} value={theme}>{t(["Match interface", "High contrast"][index])}</option>)}
       </select></label>
       <label className="checkbox-label"><input type="checkbox" checked={value.lineNumbers}
         onChange={event => change({ ...value, lineNumbers: event.target.checked })} /> {t("Show line numbers")}</label>

@@ -18,6 +18,8 @@ const russian: Record<string, string> = {
   "Violet": "Фиолетовый",
   "Green": "Зелёный",
   "Code color theme": "Цветовая тема кода",
+  "Switch appearance": "Переключить светлую и тёмную тему",
+  "High contrast": "Высокая контрастность",
   "Match interface": "Как в интерфейсе",
   "Light": "Светлая",
   "Dark": "Тёмная",

@@ -12,7 +12,7 @@ import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
-  SidebarSimpleIcon, CaretRightIcon, ArrowsInLineVerticalIcon, GithubLogoIcon, ListNumbersIcon, ArrowsLeftRightIcon, ArrowBendRightDownIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
+  SunIcon, MoonIcon, SidebarSimpleIcon, CaretRightIcon, ArrowsInLineVerticalIcon, GithubLogoIcon, ListNumbersIcon, ArrowsLeftRightIcon, ArrowBendRightDownIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
   FolderOpenIcon, GearSixIcon, MagnifyingGlassIcon, PlusIcon, TerminalIcon, TerminalWindowIcon, WarningCircleIcon, XIcon,
 } from "@phosphor-icons/react";
 import "@fontsource/geist/400.css";
@@ -27,7 +27,7 @@ import { TerminalPane } from "./TerminalPane";
 import { NewProject, useBuild } from "./BuildWorkspace";
 import { SwiftLanguage } from "./swift-language";
 import { GitHubClone, Settings, WorkbenchMenu, loadPreferences, zoomLevels } from "./WorkbenchTools";
-import { DirectoryGlyph, ExplorerButton, FileGlyph, PanelDivider, workbenchTheme } from "./workbench";
+import { DirectoryGlyph, ExplorerButton, FileGlyph, PanelDivider, workbenchTheme, lightWorkbenchTheme } from "./workbench";
 
 self.MonacoEnvironment = {
   getWorker: (_module, label) => label === "json" ? new JsonWorker() : new EditorWorker(),
@@ -152,11 +152,14 @@ function App() {
     document.documentElement.dataset.theme = preferences.theme;
     document.documentElement.dataset.accent = preferences.accent;
     localStorage.setItem("swiftforge.preferences", JSON.stringify(preferences));
-    editor.setTheme(preferences.syntaxTheme === "auto" ? (preferences.theme === "light" ? "vs" : workbenchTheme) : preferences.syntaxTheme);
+    const light = preferences.theme === "light";
+    editor.setTheme(preferences.syntaxTheme === "contrast"
+      ? (light ? "hc-light" : "hc-black")
+      : (light ? lightWorkbenchTheme : workbenchTheme));
     instance.current?.updateOptions({
       fontSize: preferences.fontSize, lineHeight: Math.round(preferences.fontSize * 1.55),
       lineNumbers: preferences.lineNumbers ? "on" : "off",
-      wordWrap: preferences.wrap ? "on" : "off", minimap: { enabled: preferences.minimap },
+      wordWrap: preferences.wrap ? "on" : "off", minimap: { enabled: preferences.minimap, renderCharacters: false, showSlider: "always", maxColumn: 85 },
     });
     for (const { model } of documents.current.values()) model.updateOptions({ tabSize: preferences.tabSize });
   }, [preferences]);
@@ -480,8 +483,14 @@ function App() {
             }) },
           ] },
         ]} />
-        <button className="icon-button toolbar-settings" aria-label={t("Settings")} title={t("Settings") + " · Ctrl+,"}
-          onClick={() => setSettings(true)}><GearSixIcon size={19} /></button>
+        <div className="toolbar-settings">
+          <button className="icon-button" aria-label={t("Switch appearance")} title={t("Switch appearance")}
+            onClick={() => setPreferences(value => ({ ...value, theme: value.theme === "dark" ? "light" : "dark" }))}>
+            {preferences.theme === "dark" ? <SunIcon size={17} /> : <MoonIcon size={17} />}
+          </button>
+          <button className="icon-button" aria-label={t("Settings")} title={t("Settings") + " · Ctrl+,"}
+            onClick={() => setSettings(true)}><GearSixIcon size={19} /></button>
+        </div>
       </header>
 
       <section className="command-bar" aria-label={t("Build controls")}>

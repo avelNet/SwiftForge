@@ -1,0 +1,27 @@
+{
+  "name": "swiftforge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "check": "tsc --noEmit",
+    "build": "npm run check && vite build",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@fontsource/geist": "^5.2.0",
+    "@fontsource/geist-mono": "^5.2.0",
+    "@tauri-apps/api": "^2.0.0",
+    "monaco-editor": "^0.55.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.3.0"
+  }
+}

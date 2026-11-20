@@ -67,14 +67,14 @@ export function SimulatorPreview({ root, dirty, revision }: { root: string | nul
       </select>
       <button className="action primary" disabled={!root || busy || dirty} onClick={() => void launch()}
         title={dirty ? t("Save all modified files before building.") : undefined}>
-        {running ? <ArrowClockwiseIcon size={15} /> : <PlayIcon size={15} weight="fill" />}
+        {running ? <ArrowClockwiseIcon size={15} aria-hidden /> : <PlayIcon size={15} weight="fill" aria-hidden />}
         {busy ? t("Building…") : running ? t("Rebuild preview") : t("Run preview")}
       </button>
       {running && <button className="icon-button" aria-label={t("Stop preview")} onClick={() => {
         setRunning(false);
         setImage("");
         void invoke("simulator_stop").catch(problem => setError(String(problem)));
-      }}><StopIcon size={15} /></button>}
+      }}><StopIcon size={15} aria-hidden /></button>}
       <label className="simulator-auto"><input type="checkbox" checked={auto} onChange={event => setAuto(event.target.checked)} />
         {t("Rebuild on save")}</label>
     </div>
@@ -92,7 +92,7 @@ export function SimulatorPreview({ root, dirty, revision }: { root: string | nul
         </div>
       </div>
     </div>
-    {error && <pre className="simulator-error" role="alert">{error}</pre>}
+    {error && <pre className="simulator-error" role="alert">{t(error)}</pre>}
     {!root && <p className="simulator-error">{t("Open a Swift project")}</p>}
   </>;
 }

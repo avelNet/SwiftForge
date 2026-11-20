@@ -130,7 +130,7 @@ export function useBuild(root: string | null, canBuild: () => boolean) {
   }
 
   return {
-    visible, setVisible, running, status, artifact, build, check, exportIPA,
+    visible, setVisible, running, status, artifact, build, check, exportIPA, write,
     controls: <>
       <select aria-label="Build configuration" value={configuration} onChange={event => setConfiguration(event.target.value === "release" ? "release" : "debug")} disabled={running}>
         <option value="debug">Debug</option><option value="release">Release</option>

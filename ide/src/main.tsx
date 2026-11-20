@@ -11,7 +11,7 @@ import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   CaretRightIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
-  FolderOpenIcon, MagnifyingGlassIcon, PlusIcon, TerminalWindowIcon, WarningCircleIcon, XIcon,
+  FolderOpenIcon, GearSixIcon, MagnifyingGlassIcon, PlusIcon, TerminalWindowIcon, WarningCircleIcon, XIcon,
 } from "@phosphor-icons/react";
 import "@fontsource/geist/400.css";
 import "@fontsource/geist/500.css";
@@ -21,6 +21,7 @@ import "./styles.css";
 import { IPhonePanel } from "./IPhonePanel";
 import { NewProject, useBuild } from "./BuildWorkspace";
 import { SwiftLanguage } from "./swift-language";
+import { GitHubClone, Settings, WorkbenchMenu, loadPreferences } from "./WorkbenchTools";
 import { DirectoryGlyph, ExplorerButton, FileGlyph, PanelDivider, workbenchTheme } from "./workbench";
 
 self.MonacoEnvironment = {
@@ -74,6 +75,9 @@ function App() {
   const [tabs, setTabs] = useState<string[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [newProject, setNewProject] = useState(false);
+  const [cloneProject, setCloneProject] = useState(false);
+  const [settings, setSettings] = useState(false);
+  const [preferences, setPreferences] = useState(loadPreferences);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [showExplorer, setShowExplorer] = useState(true);
@@ -111,6 +115,17 @@ function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = preferences.theme;
+    localStorage.setItem("swiftforge.preferences", JSON.stringify(preferences));
+    editor.setTheme(preferences.theme === "light" ? "vs" : workbenchTheme);
+    instance.current?.updateOptions({
+      fontSize: preferences.fontSize, lineHeight: Math.round(preferences.fontSize * 1.55),
+      wordWrap: preferences.wrap ? "on" : "off", minimap: { enabled: preferences.minimap },
+    });
+    for (const { model } of documents.current.values()) model.updateOptions({ tabSize: preferences.tabSize });
+  }, [preferences]);
 
   useEffect(() => {
     const code = instance.current!;
@@ -220,6 +235,7 @@ function App() {
     if (!documents.current.has(path)) {
       const text = await invoke<string>("read_document", { root: workspace, path });
       const model = editor.createModel(text, language(path), Uri.file(`${workspace}/${path}`));
+      model.updateOptions({ tabSize: preferences.tabSize });
       const subscription = model.onDidChangeContent(() => redraw(value => value + 1));
       documents.current.set(path, { model, saved: model.getValue(undefined, true), diskText: text, subscription });
       swift.current?.track(model);
@@ -259,7 +275,7 @@ function App() {
       },
     });
     return () => opener.dispose();
-  }, [root]);
+  }, [root, preferences.tabSize]);
 
   function close(path: string) {
     if (pending.current) return;
@@ -297,8 +313,12 @@ function App() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (newProject || (!event.ctrlKey && !event.metaKey) || event.altKey || event.shiftKey) return;
+      if (newProject || cloneProject || settings || (!event.ctrlKey && !event.metaKey) || event.altKey || event.shiftKey) return;
       switch (event.key.toLowerCase()) {
+        case ",":
+          event.preventDefault();
+          setSettings(true);
+          break;
         case "s":
           event.preventDefault();
           save();
@@ -341,6 +361,39 @@ function App() {
           <span className="brand-mark"><CodeIcon size={18} weight="bold" aria-hidden /></span>
           <span>SwiftForge</span>
         </div>
+        <WorkbenchMenu groups={[
+          { label: "File", items: [
+            { name: "New project", shortcut: "Ctrl+N", run: startNewProject },
+            { name: "Open folder", shortcut: "Ctrl+O", run: openProject },
+            { name: "Save", shortcut: "Ctrl+S", enabled: edited, run: save },
+            { name: "Settings", shortcut: "Ctrl+,", run: () => setSettings(true) },
+          ] },
+          { label: "Edit", items: [
+            { name: "Undo", shortcut: "Ctrl+Z", enabled: !!active, run: () => instance.current?.trigger("menu", "undo", null) },
+            { name: "Redo", shortcut: "Ctrl+Y", enabled: !!active, run: () => instance.current?.trigger("menu", "redo", null) },
+            { name: "Find", shortcut: "Ctrl+F", enabled: !!active, run: () => void instance.current?.getAction("actions.find")?.run() },
+          ] },
+          { label: "View", items: [
+            { name: showExplorer ? "Hide Explorer" : "Show Explorer", shortcut: "Ctrl+B", run: () => setShowExplorer(!showExplorer) },
+            { name: showPhone ? "Hide iPhone" : "Show iPhone", run: () => setShowPhone(!showPhone) },
+            { name: build.visible ? "Hide build output" : "Show build output", run: () => build.setVisible(!build.visible) },
+          ] },
+          { label: "Build", items: [
+            { name: "Build IPA", enabled: !!root && !build.running, run: () => void build.build() },
+            { name: "Export IPA", enabled: !!build.artifact, run: () => void build.exportIPA() },
+            { name: "Check toolchain", run: () => void build.check() },
+          ] },
+          { label: "GitHub", items: [
+            { name: "Clone repository", run: () => { if (canSwitch()) setCloneProject(true); } },
+            { name: "Repository status", enabled: !!root, run: () => void run(async () => {
+              build.setVisible(true);
+              build.write(await invoke<string>("github_status", { root }));
+            }) },
+            { name: "Open origin on GitHub", enabled: !!root, run: () => void run(async () => {
+              await invoke("github_open", { root });
+            }) },
+          ] },
+        ]} />
         <div className="toolbar-actions">
           <button className="action" onClick={startNewProject} disabled={busy} title="New project · Ctrl+N"><PlusIcon size={17} /> New project</button>
           <button className={root ? "action" : "action primary"} onClick={openProject} disabled={busy} title="Open folder · Ctrl+O">
@@ -350,6 +403,7 @@ function App() {
             <FloppyDiskIcon size={17} aria-hidden /> Save
           </button>
           {build.controls}
+          <button className="icon-button" aria-label="Settings" title="Settings · Ctrl+," onClick={() => setSettings(true)}><GearSixIcon size={19} /></button>
         </div>
       </header>
 
@@ -432,6 +486,11 @@ function App() {
             <span>UTF-8</span><span>{languageName}</span></>}
         </div>
       </footer>
+      {settings && <Settings value={preferences} change={setPreferences} close={() => setSettings(false)} />}
+      {cloneProject && <GitHubClone close={() => setCloneProject(false)} opened={async next => {
+        await adoptProject(next);
+        setCloneProject(false);
+      }} />}
       {newProject && <NewProject onCancel={() => setNewProject(false)} onCreate={async next => {
         await adoptProject(next);
         setNewProject(false);

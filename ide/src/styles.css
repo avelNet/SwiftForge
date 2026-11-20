@@ -334,51 +334,59 @@ kbd { border: 1px solid #24160f40; border-radius: 4px; padding: 0 4px; font: 12p
   min-height: 112px;
   flex: 1;
   display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
   padding: 12px;
 }
-.iphone-viewport {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  border: 1px solid var(--divider);
-  border-radius: 12px;
-  background: #000;
-  overflow: hidden;
-}
-.iphone-viewport img { display: block; width: 100%; height: 100%; min-height: 0; object-fit: contain; }
 .phone-outline {
+  --screen-ratio: 0.46;
+  --rim: 5px;
+  --corner: clamp(14px, min(10cqw, 8cqh), 42px);
+  position: relative;
+  box-sizing: content-box;
   display: grid;
-  place-items: stretch;
-  width: min(64%, 168px, 50cqh);
-  max-height: 100%;
-  aspect-ratio: 9 / 18;
-  padding: 4px;
-  border: 1px solid #77708b;
-  border-radius: 24px;
-  background: #20202c;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  width: min(calc(100cqw - 2 * var(--rim)), 268px, calc((100cqh - 2 * var(--rim)) * var(--screen-ratio)));
+  aspect-ratio: var(--screen-ratio);
+  padding: var(--rim);
+  border-radius: var(--corner);
+  background: linear-gradient(145deg, #aaa3b0, #3d3942 22%, #73707e 76%, #332e38);
+  box-shadow: inset 0 0 0 1px #ffffff29, 0 8px 20px #0006;
 }
+.phone-outline.landscape { width: min(calc(100cqw - 2 * var(--rim)), 420px, calc((100cqh - 2 * var(--rim)) * var(--screen-ratio))); }
+.phone-buttons::before, .phone-buttons::after {
+  position: absolute;
+  width: 2px;
+  border-radius: 2px;
+  background: #6e6874;
+  content: "";
+}
+.phone-buttons::before { top: 20%; left: -2px; height: 5%; box-shadow: 0 10px #6e6874; }
+.phone-buttons::after { top: 26%; right: -2px; height: 9%; }
+.landscape .phone-buttons { display: none; }
+.phone-buttons { position: absolute; inset: 0; pointer-events: none; }
 .phone-screen {
   display: grid;
   place-items: center;
   position: relative;
-  min-height: 0;
-  border: 1px solid var(--divider);
-  border-radius: 20px;
-  background: #14141d;
+  overflow: hidden;
+  border-radius: calc(var(--corner) - var(--rim));
+  background: #101016;
   color: var(--accent);
+  box-shadow: 0 0 0 2px #0c0b10;
 }
-.phone-screen::before {
+.phone-outline:not(.showing-video) .phone-screen::before {
   position: absolute;
-  top: 8px;
-  width: 32px;
-  height: 8px;
+  top: 4%;
+  width: 32%;
+  max-width: 75px;
+  height: clamp(5px, 3cqh, 20px);
   border-radius: 999px;
-  background: #000;
+  background: #020204;
   content: "";
 }
+.iphone-viewport { position: absolute; inset: 0; background: #000; }
+.iphone-viewport img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .iphone-panel > :not(.device-stage) { flex-shrink: 0; }
 .iphone-controls {
   display: grid;
@@ -550,12 +558,6 @@ kbd { border: 1px solid #24160f40; border-radius: 4px; padding: 0 4px; font: 12p
 .settings-fields select { padding: 8px; color: inherit; background: var(--rail); border: 1px solid var(--divider); border-radius: 6px; }
 .settings-fields .checkbox-label { display: flex; gap: 8px; align-items: center; }
 .settings-fields input[type=checkbox] { width: auto; accent-color: var(--accent); }
-.phone-outline.showing-video { width: min(100%, 280px, 46cqh); }
-.phone-outline.showing-video.landscape { width: min(100%, 400px, 200cqh); aspect-ratio: 18 / 9; }
-.showing-video .phone-screen::before { display: none; }
-.showing-video .phone-screen { overflow: hidden; background: #000; }
-.showing-video .iphone-viewport { border: 0; border-radius: 0; min-width: 0; }
-.showing-video img { position: absolute; inset: 0; }
 [data-theme="light"] {
   color-scheme: light;
   color: #292725;
@@ -577,7 +579,6 @@ kbd { border: 1px solid #24160f40; border-radius: 4px; padding: 0 4px; font: 12p
 [data-theme="light"] .status.error, [data-theme="light"] .status.error svg,
 [data-theme="light"] .iphone-error { color: #a82f2c; }
 [data-theme="light"] .phone-screen { color: #f1ab83; }
-[data-theme="light"] .phone-outline { background: #272727; }
 @media (max-width: 1060px) {
   .project-actions .action span, .command-target { display: none; }
 }

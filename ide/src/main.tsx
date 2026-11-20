@@ -11,7 +11,7 @@ import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   CaretRightIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
-  FolderOpenIcon, GearSixIcon, MagnifyingGlassIcon, PlusIcon, TerminalWindowIcon, WarningCircleIcon, XIcon,
+  FolderOpenIcon, GearSixIcon, MagnifyingGlassIcon, PlusIcon, TerminalIcon, TerminalWindowIcon, WarningCircleIcon, XIcon,
 } from "@phosphor-icons/react";
 import "@fontsource/geist/400.css";
 import "@fontsource/geist/500.css";
@@ -20,6 +20,7 @@ import "@fontsource/geist-mono/400.css";
 import "./styles.css";
 import { IPhonePanel } from "./IPhonePanel";
 import { DeviceTools } from "./DeviceTools";
+import { TerminalPane } from "./TerminalPane";
 import { NewProject, useBuild } from "./BuildWorkspace";
 import { SwiftLanguage } from "./swift-language";
 import { GitHubClone, Settings, WorkbenchMenu, loadPreferences } from "./WorkbenchTools";
@@ -78,6 +79,7 @@ function App() {
   const [newProject, setNewProject] = useState(false);
   const [cloneProject, setCloneProject] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [terminalVisible, setTerminalVisible] = useState(false);
   const [preferences, setPreferences] = useState(loadPreferences);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -187,6 +189,8 @@ function App() {
     setLanguageStatus("");
     await invoke("language_stop");
     await invoke("device_logs_stop");
+    await invoke("terminal_stop");
+    setTerminalVisible(false);
     instance.current?.setModel(null);
     for (const doc of documents.current.values()) {
       doc.subscription.dispose();
@@ -313,10 +317,20 @@ function App() {
     });
   }
 
+  function toggleTerminal() {
+    if (!root) return;
+    if (!terminalVisible) build.setVisible(false);
+    setTerminalVisible(!terminalVisible);
+  }
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (newProject || cloneProject || settings || (!event.ctrlKey && !event.metaKey) || event.altKey || event.shiftKey) return;
       switch (event.key.toLowerCase()) {
+        case "`":
+          event.preventDefault();
+          if (!event.repeat) toggleTerminal();
+          break;
         case ",":
           event.preventDefault();
           setSettings(true);
@@ -379,6 +393,7 @@ function App() {
             { name: showExplorer ? "Hide Explorer" : "Show Explorer", shortcut: "Ctrl+B", run: () => setShowExplorer(!showExplorer) },
             { name: showPhone ? "Hide iPhone" : "Show iPhone", run: () => setShowPhone(!showPhone) },
             { name: build.visible ? "Hide build output" : "Show build output", run: () => build.setVisible(!build.visible) },
+            { name: terminalVisible ? "Hide terminal" : "Show terminal", shortcut: "Ctrl+`", enabled: !!root, run: toggleTerminal },
           ] },
           { label: "Build", items: [
             { name: "Build IPA", enabled: !!root && !build.running, run: () => void build.build() },
@@ -417,6 +432,8 @@ function App() {
         </button>
         <button className="rail-action" aria-label="Toggle build output" title="Build output" aria-pressed={build.visible}
           onClick={() => build.setVisible(!build.visible)}><TerminalWindowIcon size={21} aria-hidden /></button>
+        <button className="rail-action" aria-label="Toggle terminal" title="Project terminal" aria-pressed={terminalVisible}
+          disabled={!root} onClick={toggleTerminal}><TerminalIcon size={21} aria-hidden /></button>
         <button className="rail-action device-toggle" aria-label="Toggle iPhone panel" aria-controls="iphone-preview"
           title={mirrorActive ? "iPhone preview · receiver active" : "iPhone preview"} aria-pressed={showPhone}
           data-active={mirrorActive} onClick={() => setShowPhone(value => !value)}>
@@ -472,6 +489,7 @@ function App() {
           </div>}
         </div>
         {build.panel}
+        {root && <TerminalPane key={root} root={root} visible={terminalVisible} hide={() => setTerminalVisible(false)} />}
       </section>
 
       {showPhone && <PanelDivider panel="iPhone preview" side="right" width={phoneWidth} onResize={resizePhone} />}

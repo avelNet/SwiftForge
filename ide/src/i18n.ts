@@ -3,6 +3,9 @@ import { createContext, useContext } from "react";
 export type InterfaceLanguage = "en" | "ru";
 
 const russian: Record<string, string> = {
+  "No SwiftUI app found. Create a SwiftUI project or open a folder with a SwiftUI App or ContentView.": "В папке нет приложения SwiftUI. Создайте проект через «Новый проект» или откройте папку с SwiftUI App или ContentView. Консольный main.swift запускается в терминале.",
+  "Simulator preview needs exactly one Sources target.": "Для предпросмотра нужен один каталог с исходниками в Sources.",
+  "The folder contains multiple Xcode projects. Open one .xcodeproj folder.": "В папке несколько проектов Xcode. Откройте нужную папку .xcodeproj.",
   "My iPhone": "Мой iPhone",
   "Simulator": "Симулятор",
   "Simulated device": "Модель симулятора",

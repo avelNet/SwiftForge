@@ -69,27 +69,72 @@ mod linux {
         Ok(())
     }
 
+    fn copy_loose_swiftui(root: &Path, destination: &Path) -> Result<()> {
+        let mut files = Vec::new();
+        let mut swiftui = false;
+        let mut entry_point = false;
+        let mut content_view = false;
+        for item in fs::read_dir(root).map_err(|error| error.to_string())? {
+            let item = item.map_err(|error| error.to_string())?;
+            let path = item.path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("swift")
+                || item.file_name() == "Package.swift"
+                || !item.file_type().map_err(|error| error.to_string())?.is_file()
+            {
+                continue;
+            }
+            let source = crate::load_text(&path)?;
+            swiftui |= source.lines().any(|line| line.trim() == "import SwiftUI");
+            entry_point |= source.contains("@main");
+            content_view |= source.contains("struct ContentView");
+            files.push(path);
+        }
+        if !swiftui || (!entry_point && !content_view) {
+            return Err("No SwiftUI app found. Create a SwiftUI project or open a folder with a SwiftUI App or ContentView.".into());
+        }
+        for path in files {
+            let name = path.file_name().ok_or("Preview source has no filename.")?;
+            let name = if name == "main.swift" { std::ffi::OsStr::new("__SwiftForgeMainSource.swift") } else { name };
+            fs::copy(&path, destination.join(name)).map_err(|error| error.to_string())?;
+        }
+        if !entry_point {
+            let mut app = fs::OpenOptions::new().write(true).create_new(true)
+                .open(destination.join("__SwiftForgePreviewEntry.swift")).map_err(|error| error.to_string())?;
+            app.write_all(b"import SwiftUI
+@main struct SwiftForgePreviewEntry: App { var body: some Scene { WindowGroup { ContentView() } } }
+")
+                .map_err(|error| error.to_string())?;
+        }
+        Ok(())
+    }
+
     fn build(root: &Path, directory: &Path) -> Result<PathBuf> {
         let mut projects: Vec<_> = fs::read_dir(root).map_err(|error| error.to_string())?
             .filter_map(std::result::Result::ok).map(|entry| entry.path())
             .filter(|path| path.extension().is_some_and(|value| value == "xcodeproj") && path.is_dir()).collect();
         let output = directory.join("build");
-        let project = if projects.len() == 1 {
+        let project = if root.extension().is_some_and(|value| value == "xcodeproj") && root.join("project.pbxproj").is_file() {
+            root.to_owned()
+        } else if projects.len() == 1 {
             projects.pop().unwrap()
-        } else if projects.is_empty() && root.join("xtool.yml").is_file() {
-            let mut targets: Vec<_> = fs::read_dir(root.join("Sources")).map_err(|error| error.to_string())?
-                .filter_map(std::result::Result::ok)
-                .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir())).collect();
-            if targets.len() != 1 { return Err("Simulator preview needs exactly one Sources target.".into()); }
+        } else if projects.is_empty() {
             let template = directory.join("project");
             checked(tool(directory).arg("new").arg("PreviewApp").arg("-o").arg(&template))?;
             let destination = template.join("PreviewApp");
             fs::remove_dir_all(&destination).map_err(|error| error.to_string())?;
             fs::create_dir(&destination).map_err(|error| error.to_string())?;
-            copy_sources(&targets.pop().unwrap().path(), &destination)?;
+            if root.join("xtool.yml").is_file() {
+                let mut targets: Vec<_> = fs::read_dir(root.join("Sources")).map_err(|error| error.to_string())?
+                .filter_map(std::result::Result::ok)
+                .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir())).collect();
+                if targets.len() != 1 { return Err("Simulator preview needs exactly one Sources target.".into()); }
+                copy_sources(&targets.pop().unwrap().path(), &destination)?;
+            } else {
+                copy_loose_swiftui(root, &destination)?;
+            }
             template.join("PreviewApp.xcodeproj")
         } else {
-            return Err("Open a SwiftForge app or a folder with one Xcode project.".into());
+            return Err("The folder contains multiple Xcode projects. Open one .xcodeproj folder.".into());
         };
         checked(tool(directory).current_dir(project.parent().unwrap_or(root))
             .arg("build").arg("-project").arg(project).arg("-o").arg(&output))?;

@@ -8,6 +8,7 @@ use std::{
 use tauri::{AppHandle, Manager, State};
 
 mod build;
+mod language;
 mod mirror;
 use tauri_plugin_dialog::DialogExt;
 
@@ -145,6 +146,7 @@ fn main() {
     tauri::Builder::default()
         .manage(Workspace::default())
         .manage(build::Build::default())
+        .manage(language::Language::default())
         .manage(mirror::Mirror::default())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
@@ -158,6 +160,9 @@ fn main() {
             build::cancel_build,
             build::export_ipa,
             build::toolchain_status,
+            language::language_start,
+            language::language_send,
+            language::language_stop,
             mirror::mirror_start,
             mirror::mirror_next,
             mirror::mirror_stop
@@ -167,6 +172,7 @@ fn main() {
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
                 let _ = mirror::mirror_stop(app.state());
+                let _ = language::language_stop(app.state());
                 let _ = build::cancel_build(app.state());
             }
         });

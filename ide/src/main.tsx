@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
-import { editor, Uri } from "monaco-editor/esm/vs/editor/editor.api.js";
+import { editor, Uri, type IPosition, type IRange } from "monaco-editor/esm/vs/editor/editor.api.js";
 import "monaco-editor/esm/vs/editor/editor.all.js";
 import "monaco-editor/esm/vs/basic-languages/swift/swift.contribution.js";
 import "monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution.js";
@@ -20,6 +20,7 @@ import "@fontsource/geist-mono/400.css";
 import "./styles.css";
 import { IPhonePanel } from "./IPhonePanel";
 import { NewProject, useBuild } from "./BuildWorkspace";
+import { SwiftLanguage } from "./swift-language";
 import { DirectoryGlyph, ExplorerButton, FileGlyph, PanelDivider, workbenchTheme } from "./workbench";
 
 self.MonacoEnvironment = {
@@ -87,7 +88,10 @@ function App() {
   const documents = useRef(new Map<string, OpenDocument>());
   const views = useRef(new Map<string, editor.ICodeEditorViewState>());
   const displayed = useRef<string | null>(null);
+  const jump = useRef<{ path: string; target: IPosition | IRange } | null>(null);
   const pending = useRef(false);
+  const swift = useRef<SwiftLanguage | null>(null);
+  const [languageStatus, setLanguageStatus] = useState("");
 
   useEffect(() => {
     const code = editor.create(host.current!, {
@@ -117,6 +121,18 @@ function App() {
     code.setModel(active ? documents.current.get(active)!.model : null);
     const view = active ? views.current.get(active) : undefined;
     if (view) code.restoreViewState(view);
+    if (jump.current?.path === active) {
+      const target = jump.current.target;
+      jump.current = null;
+      if ("lineNumber" in target) {
+        code.setPosition(target);
+        code.revealPositionInCenterIfOutsideViewport(target);
+      } else {
+        code.setSelection(target);
+        code.revealRangeInCenterIfOutsideViewport(target);
+      }
+      code.focus();
+    }
     const position = code.getPosition();
     if (position) setCursor(position);
     displayed.current = active;
@@ -150,6 +166,10 @@ function App() {
 
   async function adoptProject(next: string) {
     if (next === root) return;
+    swift.current?.dispose();
+    swift.current = null;
+    setLanguageStatus("");
+    await invoke("language_stop");
     instance.current?.setModel(null);
     for (const doc of documents.current.values()) {
       doc.subscription.dispose();
@@ -158,12 +178,18 @@ function App() {
     documents.current.clear();
     views.current.clear();
     displayed.current = null;
+    jump.current = null;
     setActive(null);
     setTabs([]);
     setFolders(new Map());
     setRoot(next);
     const entries = await invoke<Entry[]>("list_directory", { root: next, path: "" });
     setFolders(new Map([["", entries]]));
+    if (entries.some(entry => entry.name === "Package.swift")) {
+      const server = new SwiftLanguage(next, setLanguageStatus);
+      swift.current = server;
+      void server.start();
+    }
   }
 
   function canSwitch() {
@@ -190,6 +216,18 @@ function App() {
     if (canSwitch()) setNewProject(true);
   }
 
+  async function openFile(workspace: string, path: string) {
+    if (!documents.current.has(path)) {
+      const text = await invoke<string>("read_document", { root: workspace, path });
+      const model = editor.createModel(text, language(path), Uri.file(`${workspace}/${path}`));
+      const subscription = model.onDidChangeContent(() => redraw(value => value + 1));
+      documents.current.set(path, { model, saved: model.getValue(undefined, true), diskText: text, subscription });
+      swift.current?.track(model);
+      setTabs(previous => [...previous, path]);
+    }
+    setActive(path);
+  }
+
   function select(entry: Entry) {
     if (!root) return;
     void run(async () => {
@@ -200,16 +238,28 @@ function App() {
         setFolders(next);
         return;
       }
-      if (!documents.current.has(entry.path)) {
-        const text = await invoke<string>("read_document", { root, path: entry.path });
-        const model = editor.createModel(text, language(entry.path), Uri.file(`${root}/${entry.path}`));
-        const subscription = model.onDidChangeContent(() => redraw(value => value + 1));
-        documents.current.set(entry.path, { model, saved: model.getValue(undefined, true), diskText: text, subscription });
-        setTabs(previous => [...previous, entry.path]);
-      }
-      setActive(entry.path);
+      await openFile(root, entry.path);
     });
   }
+
+  useEffect(() => {
+    const opener = editor.registerEditorOpener({
+      async openCodeEditor(_source, resource, target) {
+        if (!root || resource.scheme !== "file" || !resource.fsPath.startsWith(root + "/")) return false;
+        const path = resource.fsPath.slice(root.length + 1);
+        try {
+          if (target) jump.current = { path, target };
+          await openFile(root, path);
+          return true;
+        } catch (error) {
+          jump.current = null;
+          setNotice(String(error));
+          return false;
+        }
+      },
+    });
+    return () => opener.dispose();
+  }, [root]);
 
   function close(path: string) {
     if (pending.current) return;
@@ -225,6 +275,7 @@ function App() {
       displayed.current = null;
       setActive(remaining[Math.min(index, remaining.length - 1)] ?? null);
     }
+    swift.current?.untrack(doc.model);
     doc.subscription.dispose();
     doc.model.dispose();
     documents.current.delete(path);
@@ -375,10 +426,11 @@ function App() {
           {notice ? <WarningCircleIcon size={15} aria-hidden /> : active && !edited && <CheckCircleIcon size={15} aria-hidden />}
           {notice || (busy ? "Working…" : active ? (edited ? "Unsaved changes" : "Saved") : project || "No project open")}
         </span>
-        {active && <div className="editor-status">
-          <span>Ln {cursor.lineNumber}, Col {cursor.column}</span>
-          <span>UTF-8</span><span>{languageName}</span>
-        </div>}
+        <div className="editor-status">
+          {languageStatus && <span title={languageStatus}>{languageStatus}</span>}
+          {active && <><span>Ln {cursor.lineNumber}, Col {cursor.column}</span>
+            <span>UTF-8</span><span>{languageName}</span></>}
+        </div>
       </footer>
       {newProject && <NewProject onCancel={() => setNewProject(false)} onCreate={async next => {
         await adoptProject(next);

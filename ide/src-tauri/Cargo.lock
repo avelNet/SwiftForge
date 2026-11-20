@@ -3217,6 +3217,7 @@ dependencies = [
  "getrandom 0.4.3",
  "libc",
  "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

@@ -2,34 +2,58 @@
 set -euo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
-build=$PWD/.build
-app=$build/Payload/SwiftForgeProbe.app
-mkdir -p "$app" dist
-rm -f dist/SwiftForgeProbe.ipa
+case "${1:-probe}" in
+    probe)
+        executable=SwiftForgeProbe
+        display_name="SwiftForge Probe"
+        bundle_id=dev.swiftforge.iosprobe
+        swift_source=Probe.swift
+        objc_source=main.m
+        ;;
+    interactive)
+        executable=SwiftForgeCounter
+        display_name="SwiftForge Counter"
+        bundle_id=dev.swiftforge.counter
+        swift_source=interactive/Counter.swift
+        objc_source=interactive/main.m
+        ;;
+    *)
+        printf 'Usage: %s [probe|interactive]\n' "$0" >&2
+        exit 2
+        ;;
+esac
+
+mkdir -p dist
+rm -f "dist/$executable.ipa"
+build=$(mktemp -d)
+trap 'rm -rf -- "$build"' EXIT
+app=$build/Payload/$executable.app
+mkdir -p "$app"
 
 "${SWIFTC:-swiftc}" -target arm64-apple-ios18.0 -wmo -Osize \
     -enable-experimental-feature Embedded -no-allocations -Xfrontend -disable-stack-protector \
-    -parse-as-library -emit-object Probe.swift -o "$build/Probe.o"
+    -parse-as-library -emit-object "$swift_source" -o "$build/Probe.o"
 "${CLANG:-clang}" -target arm64-apple-ios18.0 -fobjc-arc -Wall -Wextra -Werror \
-    -c main.m -o "$build/main.o"
+    -c "$objc_source" -o "$build/main.o"
 "${LD64:-ld64.lld}" -arch arm64 -platform_version ios 18.0 18.0 -no_adhoc_codesign \
-    -o "$app/SwiftForgeProbe" "$build/main.o" "$build/Probe.o" \
+    -o "$app/$executable" "$build/main.o" "$build/Probe.o" \
     -L "$PWD/stubs" -lSystem -lobjc "$PWD/stubs/UIKit.tbd" "$PWD/stubs/Foundation.tbd"
 
-python3 - "$app" <<'PY'
+python3 - "$app" "$executable" "$display_name" "$bundle_id" <<'PY'
 import pathlib
 import plistlib
 import sys
 import zipfile
 
-app = pathlib.Path(sys.argv[1])
+app_path, executable, display_name, bundle_id = sys.argv[1:]
+app = pathlib.Path(app_path)
 info = {
     "CFBundleDevelopmentRegion": "en",
-    "CFBundleDisplayName": "SwiftForge Probe",
-    "CFBundleExecutable": "SwiftForgeProbe",
-    "CFBundleIdentifier": "dev.swiftforge.iosprobe",
+    "CFBundleDisplayName": display_name,
+    "CFBundleExecutable": executable,
+    "CFBundleIdentifier": bundle_id,
     "CFBundleInfoDictionaryVersion": "6.0",
-    "CFBundleName": "SwiftForgeProbe",
+    "CFBundleName": executable,
     "CFBundlePackageType": "APPL",
     "CFBundleShortVersionString": "1.0",
     "CFBundleSupportedPlatforms": ["iPhoneOS"],
@@ -41,8 +65,9 @@ info = {
 }
 with (app / "Info.plist").open("wb") as stream:
     plistlib.dump(info, stream)
-with zipfile.ZipFile("dist/SwiftForgeProbe.ipa", "w", zipfile.ZIP_DEFLATED) as ipa:
+archive = pathlib.Path("dist") / (executable + ".ipa")
+with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as ipa:
     for name in ("Info.plist", info["CFBundleExecutable"]):
         ipa.write(app / name, f"Payload/{app.name}/{name}")
-print("dist/SwiftForgeProbe.ipa (unsigned)")
+print(f"{archive} (unsigned)")
 PY

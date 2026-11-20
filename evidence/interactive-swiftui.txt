@@ -1,0 +1,11 @@
+xtool 1.24.0
+Not installed
+No Swift SDKs are currently installed.
+Now generating the Darwin SDK.
+
+Error: Could not read file or directory at path ''.
+  See 'xtool help sdk' for usage.
+xtool build exit: 1
+<unknown>:0: error: unable to load standard library for target 'arm64-apple-ios18.0'
+Swift typecheck exit: 1
+SwiftUI source syntax: parsed successfully (no SDK type-check)

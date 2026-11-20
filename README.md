@@ -47,3 +47,20 @@ LLVM_OBJDUMP="$llvm/llvm-objdump" LLVM_NM="$llvm/llvm-nm" ./ios-probe/verify.sh
 Редактор, LSP, SwiftPM и локальные Linux-сборки подходят для коммерческой IDE. Собранный IPA показывает, что Ubuntu может создавать нативный код для iPhone даже без Apple SDK, но узкие заглушки этого теста непригодны как универсальный SDK для разработки приложений. Штатную поддержку SwiftUI и Xcode-проектов пока обещать нельзя.
 
 Работа с SDK Apple — отдельный вопрос. В Xcode and Apple SDKs Agreement, §§ 2.2, 2.5 и 2.7, Apple ограничивает использование Apple Software компьютерами Apple и запрещает его неразрешённое распространение. Самостоятельная загрузка архива пользователем не снимает вопрос о допустимости этого сценария на обычном ПК. Это ограничение нужно разрешить до коммерческой поставки интеграции с Apple SDK. Публикация в App Store также требует отдельного членства Apple, вне бюджета данного теста. [Лицензия Xcode и Apple SDK](https://www.apple.com/legal/sla/docs/xcode.pdf) · [Apple Developer Account](https://developer.apple.com/help/account/basics/about-your-developer-account/)
+
+## Интерактивный тест
+
+Первый IPA, `SwiftForge Probe`, использует UIKit. В [Objective-C точке входа](ios-probe/main.m) вызывается `UIApplicationMain`, создаются окно, контроллер и `UILabel`. Swift-функция из [Probe.swift](ios-probe/Probe.swift) возвращает число. Только при результате 42 на устройстве появляется `SwiftForge: Swift on iPhone OK`. Исполняемый Mach-O ARM64 создавался на Ubuntu, где `swiftc` 6.4.2 компилировал Swift в Embedded-режиме, Clang компилировал Objective-C, а Ubuntu `ld64.lld` 21.1.8 связывал объектные файлы. Копия приложения подписана через iLoader 2.4.2 и запущена на iPhone с iOS 26.4.2. [Проверка устройства](evidence/device.txt)
+
+Второй IPA, `SwiftForge Counter`, включает нативные `UILabel`, `UIButton` и `UITextField`. Обработчик кнопки вызывает [функцию Embedded Swift](ios-probe/interactive/Counter.swift). [Код UIKit](ios-probe/interactive/main.m) сохраняет счётчик и текст через `NSUserDefaults` и читает их при запуске. Это отдельный идентификатор приложения и отдельный контейнер данных.
+
+С теми же переменными окружения, что выше, выполните чистую сборку. Каждый запуск создаёт новый временный каталог объектов и пакета.
+
+```bash
+LD64="$llvm/ld64.lld" ./ios-probe/build.sh interactive
+LLVM_OBJDUMP="$llvm/llvm-objdump" LLVM_NM="$llvm/llvm-nm" ./ios-probe/verify.sh --interactive
+```
+
+В iLoader выберите iPhone и импортируйте `ios-probe/dist/SwiftForgeCounter.ipa` для подписи и установки. На телефоне откройте **SwiftForge Counter**, дважды нажмите **Increment** и введите `SwiftForge test`. Закройте приложение через переключатель и откройте заново. Ожидаются `Count: 2` и введённый текст. Проверка пакета на Ubuntu и четыре теста Swift-функции прошли. Установка, работа интерфейса и сохранение после перезапуска требуют отдельного прогона на iPhone. [Журнал сборки](evidence/interactive-build.txt) · [Журнал тестов](evidence/interactive-linux-check.txt)
+
+Отдельная [версия на SwiftUI](ios-probe/SDKProbe/Sources/SDKProbe/ContentView.swift) реализует те же элементы с `Button`, `TextField` и `@AppStorage`. Попытка `xtool dev build --ipa` остановилась на отсутствующем Darwin SDK. Прямая проверка `swiftc` остановилась на отсутствии стандартной библиотеки для обычного iOS-таргета. Рабочий интерактивный IPA использует UIKit и Foundation на устройстве. Сборка произвольных SwiftUI-приложений, ресурсов Xcode и расширений этим результатом не подтверждена. [Журнал SwiftUI](evidence/interactive-swiftui.txt)

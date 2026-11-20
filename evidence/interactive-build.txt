@@ -1,0 +1,36 @@
+Linux x86_64
+Swift version 6.4.2 (swift-6.4.2-RELEASE)
+Target: x86_64-unknown-linux-gnu
+clang version 21.0.0 (https://github.com/swiftlang/llvm-project.git fb5f84d903a3b4e7aea15cd5666598a46f56c833)
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /home/pavel/development/SwiftForge/.local/swift/usr/bin
+Ubuntu LLD 21.1.8
++ set -euo pipefail
+++ dirname -- ios-probe/build.sh
++ cd -- ios-probe
++ case "${1:-probe}" in
++ executable=SwiftForgeCounter
++ display_name='SwiftForge Counter'
++ bundle_id=dev.swiftforge.counter
++ swift_source=interactive/Counter.swift
++ objc_source=interactive/main.m
++ mkdir -p dist
++ rm -f dist/SwiftForgeCounter.ipa
+++ mktemp -d
++ build=/tmp/tmp.EQGYsIzjtx
++ trap 'rm -rf -- "$build"' EXIT
++ app=/tmp/tmp.EQGYsIzjtx/Payload/SwiftForgeCounter.app
++ mkdir -p /tmp/tmp.EQGYsIzjtx/Payload/SwiftForgeCounter.app
++ swiftc -target arm64-apple-ios18.0 -wmo -Osize -enable-experimental-feature Embedded -no-allocations -Xfrontend -disable-stack-protector -parse-as-library -emit-object interactive/Counter.swift -o /tmp/tmp.EQGYsIzjtx/Probe.o
++ clang -target arm64-apple-ios18.0 -fobjc-arc -Wall -Wextra -Werror -c interactive/main.m -o /tmp/tmp.EQGYsIzjtx/main.o
++ /home/pavel/development/SwiftForge/.local/llvm/usr/lib/llvm-21/bin/ld64.lld -arch arm64 -platform_version ios 18.0 18.0 -no_adhoc_codesign -o /tmp/tmp.EQGYsIzjtx/Payload/SwiftForgeCounter.app/SwiftForgeCounter /tmp/tmp.EQGYsIzjtx/main.o /tmp/tmp.EQGYsIzjtx/Probe.o -L /home/pavel/development/SwiftForge/ios-probe/stubs -lSystem -lobjc /home/pavel/development/SwiftForge/ios-probe/stubs/UIKit.tbd /home/pavel/development/SwiftForge/ios-probe/stubs/Foundation.tbd
++ python3 - /tmp/tmp.EQGYsIzjtx/Payload/SwiftForgeCounter.app SwiftForgeCounter 'SwiftForge Counter' dev.swiftforge.counter
+dist/SwiftForgeCounter.ipa (unsigned)
++ rm -rf -- /tmp/tmp.EQGYsIzjtx
+dev.swiftforge.counter: IPA and Info.plist OK
+MH_MAGIC_64   ARM64        ALL  0x00     EXECUTE    20       2144   NOUNDEFS DYLDLINK TWOLEVEL WEAK_DEFINES BINDS_TO_WEAK PIE
+  platform ios
+     minos 18.0
+0000000100005188 T _swiftforge_increment
+076a03a6c7a44b031558b97cd2ea0b1f6e339dd7814e0c22e7837e72a5b14b26  dist/SwiftForgeCounter.ipa

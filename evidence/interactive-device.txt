@@ -4,3 +4,7 @@ Ubuntu, iLoader 2.4.2, iPhone с iOS 26.4.2.
 iLoader: InstallComplete.
 Проверка по USB, ideviceinstaller list:
 dev.swiftforge.counter.[Team ID скрыт], "1.0", "SwiftForge Counter"
+Проверка процесса по USB: SwiftForgeCounter запущен.
+Проверка на физическом iPhone, выполненная владельцем:
+- Кнопка изменяет счётчик, текстовое поле принимает ввод.
+- После полного закрытия и повторного запуска счётчик и введённый текст сохранились.

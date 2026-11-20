@@ -1,6 +1,6 @@
 import { useLocale } from "./i18n";
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { AirplayIcon, DeviceMobileIcon, StopIcon, WarningCircleIcon } from "@phosphor-icons/react";
 
 interface Receiver {
@@ -17,7 +17,7 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
   const [receiver, setReceiver] = useState<Receiver | null>(null);
   const [frame, setFrame] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
-  const [landscape, setLandscape] = useState(false);
+  const [frameRatio, setFrameRatio] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const stopping = useRef(false);
@@ -50,6 +50,7 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
         setError(String(problem));
         setReceiver(null);
         setFrame(null);
+        setFrameRatio(0);
       } finally {
         polling = false;
       }
@@ -79,6 +80,7 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
         await invoke("mirror_stop");
         setReceiver(null);
         setFrame(null);
+        setFrameRatio(0);
       } else {
         setStale(false);
         stopping.current = false;
@@ -102,11 +104,16 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
         <span className={`connection-dot ${connection}`} aria-hidden="true" />
       </div>
       <div className="device-stage">
-        <div className={`phone-outline${frame ? " showing-video" : ""}${frame && landscape ? " landscape" : ""}`}>
+        <div className={`phone-outline${frame ? " showing-video" : ""}${frameRatio > 1 ? " landscape" : ""}`}
+          style={frameRatio ? { "--screen-ratio": frameRatio } as CSSProperties : undefined}>
+          <span className="phone-buttons" aria-hidden="true" />
           <div className="phone-screen">
             {frame
               ? <div className="iphone-viewport"><img src={frame} alt={t("Live screen from the connected iPhone")}
-                  onLoad={event => setLandscape(event.currentTarget.naturalWidth > event.currentTarget.naturalHeight)} /></div>
+                  onLoad={event => {
+                    const { naturalWidth, naturalHeight } = event.currentTarget;
+                    if (naturalWidth && naturalHeight) setFrameRatio(naturalWidth / naturalHeight);
+                  }} /></div>
               : <AirplayIcon size={36} weight="light" aria-hidden />}
           </div>
         </div>

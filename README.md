@@ -72,3 +72,7 @@ LLVM_OBJDUMP="$llvm/llvm-objdump" LLVM_NM="$llvm/llvm-nm" ./ios-probe/verify.sh 
 ## SwiftUI с официальным SDK
 
 Архив `Xcode_27.2.xip` с Apple Developer передан в `xtool sdk install`. Локальный Darwin SDK зарегистрирован в SwiftPM. Команда `xtool dev build --ipa` из `ios-probe/SDKProbe` произвела `xtool/SDKProbe.ipa`. Внутри проверены Mach-O ARM64, минимальная версия iOS 17.0 и динамическая ссылка на системный SwiftUI. Подпись и установка выполнены в iLoader. Установка и запущенный процесс SDKProbe на iOS 26.4.2 подтверждены по USB. В зеркале UxPlay на Ubuntu видны нативный экран SwiftUI и изменение счётчика. [Журнал сборки](evidence/swiftui-xtool-build.txt) · [Проверка на iPhone](evidence/swiftui-device.txt)
+
+## Разработка IDE
+
+[Архитектура MVP, ветки и приёмка](docs/mvp-architecture.md).

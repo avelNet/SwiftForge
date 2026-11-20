@@ -143,7 +143,7 @@ fn start() -> Result<(Session, Receiver), String> {
     let receiver = child_command(binary)
         .args([
             "-rc", "/dev/null", "-n", RECEIVER_NAME, "-nh", "-pin", &pin, "-a",
-            "-fps", "15", "-vsync", "no", "-srgb", "no", "-avdec", "-vc", &video, "-vs", "fakesink",
+            "-fps", "30", "-vsync", "no", "-srgb", "no", "-avdec", "-vc", &video, "-vs", "fakesink",
         ])
         .stdin(Stdio::null())
         .spawn()

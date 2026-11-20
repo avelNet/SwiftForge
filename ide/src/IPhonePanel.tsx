@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { AirplayIcon, DeviceMobileIcon, GearSixIcon, StopIcon, WarningCircleIcon } from "@phosphor-icons/react";
 
+const frameInterval = 1000 / 30;
+
 interface Receiver {
   name: string;
   pin: string;
@@ -37,6 +39,7 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
     async function poll() {
       if (polling || !active || stopping.current) return;
       polling = true;
+      const started = performance.now();
       try {
         const image = await invoke<string | null>("mirror_next");
         if (!active || stopping.current) return;
@@ -47,7 +50,9 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
         } else if (lastFrame && performance.now() - lastFrame > 5_000) {
           setStale(true);
         }
-        timer = window.setTimeout(poll, 80);
+        // Include IPC time in the frame budget so slower reads do not add a full interval.
+        const interval = document.visibilityState === "visible" ? frameInterval : 200;
+        timer = window.setTimeout(poll, Math.max(0, interval - (performance.now() - started)));
       } catch (problem) {
         if (!active || stopping.current) return;
         setError(String(problem));

@@ -340,20 +340,22 @@ kbd { border: 1px solid #24160f40; border-radius: 4px; padding: 0 4px; font: 12p
 }
 .phone-outline {
   --screen-ratio: 0.46;
+  --screen-width-limit: 268px;
+  --preview-scale: 1;
   --rim: 5px;
   --corner: clamp(14px, min(10cqw, 8cqh), 42px);
   position: relative;
   box-sizing: content-box;
   display: grid;
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
-  width: min(calc(100cqw - 2 * var(--rim)), 268px, calc((100cqh - 2 * var(--rim)) * var(--screen-ratio)));
+  width: min(calc(100cqw - 2 * var(--rim)), calc(var(--screen-width-limit) * var(--preview-scale)), calc((100cqh - 2 * var(--rim)) * var(--screen-ratio) * var(--preview-scale)));
   aspect-ratio: var(--screen-ratio);
   padding: var(--rim);
   border-radius: var(--corner);
   background: linear-gradient(145deg, #aaa3b0, #3d3942 22%, #73707e 76%, #332e38);
   box-shadow: inset 0 0 0 1px #ffffff29, 0 8px 20px #0006;
 }
-.phone-outline.landscape { width: min(calc(100cqw - 2 * var(--rim)), 420px, calc((100cqh - 2 * var(--rim)) * var(--screen-ratio))); }
+.phone-outline.landscape { --screen-width-limit: 420px; }
 .phone-buttons::before, .phone-buttons::after {
   position: absolute;
   width: 2px;
@@ -631,4 +633,49 @@ kbd { border: 1px solid #24160f40; border-radius: 4px; padding: 0 4px; font: 12p
   .command-bar .action { padding-inline: 7px; }
   .editor-status { gap: 8px; }
   .editor-status > span:first-child:not(:only-child) { max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+}
+
+:root[data-accent="blue"] { --accent: #91baff; --accent-fill: #9ebeff; --accent-ink: #10244b; }
+:root[data-accent="violet"] { --accent: #c2a6ff; --accent-fill: #c6aeff; --accent-ink: #281549; }
+:root[data-accent="green"] { --accent: #a2d6aa; --accent-fill: #a9dfb1; --accent-ink: #12351a; }
+:root[data-theme="light"][data-accent="blue"] { --accent: #24599d; }
+:root[data-theme="light"][data-accent="violet"] { --accent: #6839a9; }
+:root[data-theme="light"][data-accent="green"] { --accent: #286638; }
+.action.primary:hover:not(:disabled), .build-controls .build-start:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-fill), white 24%);
+}
+.brand-mark { color: var(--accent); border-color: color-mix(in srgb, var(--accent), var(--divider)); }
+.entry.selected, .rail-action[aria-pressed="true"], .editor-toggle[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+.file-glyph.swift { color: #f28d62; }
+.file-glyph.package { color: #e1b769; }
+.file-glyph.asset { color: #7eb9e6; }
+.file-glyph.localization { color: #a6b0fd; }
+[data-theme="light"] .file-glyph.swift { color: #aa4725; }
+[data-theme="light"] .file-glyph.package { color: #856011; }
+[data-theme="light"] .file-glyph.asset { color: #245b8d; }
+[data-theme="light"] .file-glyph.localization { color: #4f5099; }
+
+.workbench-modes { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--divider); border-radius: 8px; }
+.workbench-modes .action { gap: 5px; padding: 5px 8px; border: 0; background: transparent; }
+.workbench-modes .action[aria-pressed="true"] { background: var(--raised); color: var(--accent); }
+.app[data-device-mode="true"] .workspace { display: none; }
+.app[data-device-mode="true"] .iphone-panel { grid-column: 3 / -1; margin-left: 7px; }
+.app[data-device-mode="true"] .phone-outline { --screen-width-limit: 400px; }
+.app[data-device-mode="true"] .phone-outline.landscape { --screen-width-limit: 720px; }
+.phone-heading-actions, .device-display-settings, .device-display-settings label { display: flex; align-items: center; gap: 6px; }
+.device-display-settings { flex-wrap: wrap; justify-content: space-between; border-bottom: 1px solid var(--divider); padding: 6px 10px; font-size: 12px; }
+.device-display-settings select { color: inherit; background: var(--raised); border: 1px solid var(--divider); border-radius: 4px; }
+.device-display-settings input { accent-color: var(--accent); }
+.device-stage[data-size="compact"] { padding: 22px; }
+.device-stage[data-size="compact"] .phone-outline { --preview-scale: .75; }
+.device-stage[data-frame="false"] .phone-outline { --rim: 0px; --corner: 0px; background: transparent; box-shadow: none; }
+.device-stage[data-frame="false"] .phone-buttons, .device-stage[data-frame="false"] .phone-screen::before { display: none; }
+.device-stage[data-frame="false"] .phone-screen { box-shadow: none; }
+@media (max-width: 1200px) {
+  .workbench-modes .action span { display: none; }
+}
+@media (max-width: 620px) {
+  .command-bar .project-actions { display: none; }
 }

@@ -12,6 +12,8 @@ mod device;
 mod github;
 mod language;
 mod mirror;
+#[cfg(target_os = "linux")]
+mod simulator;
 mod terminal;
 use tauri_plugin_dialog::DialogExt;
 
@@ -196,7 +198,10 @@ fn save_document(
 }
 
 fn main() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "linux")]
+    let builder = builder.manage(simulator::Simulator::default());
+    builder
         .manage(Workspace::default())
         .manage(build::Build::default())
         .manage(terminal::Terminal::default())
@@ -236,12 +241,22 @@ fn main() {
             terminal::terminal_stop,
             mirror::mirror_start,
             mirror::mirror_next,
-            mirror::mirror_stop
+            mirror::mirror_stop,
+            #[cfg(target_os = "linux")]
+            simulator::simulator_start,
+            #[cfg(target_os = "linux")]
+            simulator::simulator_frame,
+            #[cfg(target_os = "linux")]
+            simulator::simulator_tap,
+            #[cfg(target_os = "linux")]
+            simulator::simulator_stop
         ])
         .build(tauri::generate_context!())
         .expect("SwiftForge could not start")
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
+                #[cfg(target_os = "linux")]
+                let _ = simulator::simulator_stop(app.state());
                 let _ = mirror::mirror_stop(app.state());
                 let _ = device::device_logs_stop(app.state());
                 let _ = terminal::terminal_stop(app.state());

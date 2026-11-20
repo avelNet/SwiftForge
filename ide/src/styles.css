@@ -780,14 +780,34 @@ kbd { border: 1px solid #24160f40; border-radius: 4px; padding: 0 4px; font: 12p
   position: fixed;
   z-index: 20;
   display: grid;
-  width: 232px;
-  padding: 4px;
+  width: min(310px, calc(100vw - 12px));
+  padding: 5px;
   border: 1px solid var(--divider);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: 0 12px 32px #0006;
 }
-.file-context button { padding: 6px 9px; border-radius: 4px; text-align: start; }
+.file-context button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border-radius: 4px;
+  text-align: start;
+}
+.file-context button svg { color: var(--subtle); }
+.file-context .file-context-divider { margin-top: 4px; border-top: 1px solid var(--divider); padding-top: 7px; }
 .file-context button:hover, .file-context button:focus-visible { background: var(--hover); }
 #project-explorer .panel-heading { padding-inline: 8px; position: sticky; top: 0; z-index: 1; background: var(--rail); }
 #project-explorer .explorer-actions { gap: 1px; }
+
+.device-modes, .simulator-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 6px 8px; border-bottom: 1px solid var(--divider); }
+.device-modes .action { flex: 1; padding: 4px 8px; }
+.device-modes .action[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.simulator-toolbar select { min-width: 0; min-height: 30px; background: var(--surface); color: inherit; border: 1px solid var(--divider); border-radius: 5px; }
+.simulator-toolbar .action { padding: 4px 8px; }
+.simulator-image { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; }
+.simulator-error { max-height: 140px; margin: 0; padding: 8px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.simulator-auto { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.simulator-auto input { accent-color: var(--accent); }

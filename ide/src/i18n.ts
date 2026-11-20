@@ -3,6 +3,14 @@ import { createContext, useContext } from "react";
 export type InterfaceLanguage = "en" | "ru";
 
 const russian: Record<string, string> = {
+  "My iPhone": "Мой iPhone",
+  "Simulator": "Симулятор",
+  "Simulated device": "Модель симулятора",
+  "Simulated app screen": "Экран приложения в симуляторе",
+  "Run preview": "Запустить просмотр",
+  "Rebuild on save": "Пересобирать при сохранении",
+  "Rebuild preview": "Пересобрать",
+  "Stop preview": "Остановить просмотр",
   "Refresh files": "Обновить файлы",
   "File actions": "Действия с файлами",
   "Show in file manager": "Показать в файловом менеджере",

@@ -507,7 +507,10 @@ function App() {
             { name: t("Command palette"), shortcut: "F1", enabled: !!active,
               run: () => void instance.current?.getAction("editor.action.quickCommand")?.run() },
             { name: t("Peek definition"), shortcut: "Ctrl+Shift+F10", enabled: activeLanguage === "swift",
-              run: () => void instance.current?.getAction("editor.action.peekDefinition")?.run() },
+              run: () => {
+                instance.current?.focus();
+                instance.current?.trigger("menu", "editor.action.peekDefinition", null);
+              } },
             { name: t("Duplicate line"), shortcut: "Ctrl+D", enabled: !!active,
               run: () => void instance.current?.getAction("editor.action.copyLinesDownAction")?.run() },
             { name: t("Toggle line comment"), shortcut: "Ctrl+/", enabled: !!active,
@@ -658,7 +661,10 @@ function App() {
             <button className="icon-button" aria-label={t("Go to line")} title={t("Go to line") + " · Ctrl+G"}
               onClick={() => void instance.current?.getAction("editor.action.gotoLine")?.run()}><ListNumbersIcon size={16} /></button>
             <button className="icon-button" aria-label={t("Go to definition")} title={t("Go to definition") + " · F12"} disabled={activeLanguage !== "swift"}
-              onClick={() => void instance.current?.getAction("editor.action.revealDefinition")?.run()}><ArrowBendRightDownIcon size={16} /></button>
+              onClick={() => {
+                instance.current?.focus();
+                instance.current?.trigger("toolbar", "editor.action.revealDefinition", null);
+              }}><ArrowBendRightDownIcon size={16} /></button>
           </div>
         </div>}
         <div className="editor-area">

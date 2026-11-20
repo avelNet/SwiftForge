@@ -32,13 +32,23 @@ async fn open_workspace(app: AppHandle, workspace: State<'_, Workspace>) -> Resu
         return Ok(None);
     };
     let root = folder.into_path().map_err(|error| error.to_string())?;
-    let root = root.canonicalize().map_err(|error| error.to_string())?;
+    remember_workspace(&workspace, &root).map(Some)
+}
+
+#[tauri::command]
+fn restore_workspace(workspace: State<'_, Workspace>, path: &str) -> Result<String> {
+    remember_workspace(&workspace, Path::new(path))
+}
+
+fn remember_workspace(workspace: &Workspace, path: &Path) -> Result<String> {
+    let root = path.canonicalize().map_err(|error| error.to_string())?;
+    if !root.is_dir() { return Err("The project folder no longer exists.".into()); }
     let name = root
         .to_str()
         .ok_or("The project path must be valid UTF-8.")?
         .to_owned();
     *workspace.lock().map_err(|error| error.to_string())? = Some(root);
-    Ok(Some(name))
+    Ok(name)
 }
 
 fn workspace_path(root: &Path, relative: &str) -> Result<PathBuf> {
@@ -196,6 +206,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             open_workspace,
+            restore_workspace,
             list_directory,
             create_entry,
             reveal_entry,

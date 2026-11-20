@@ -85,6 +85,7 @@ function FileTree({ path, folders, expanded, active, onSelect, onContext }: {
 }
 
 function App() {
+  const [sessionRestored, setSessionRestored] = useState(false);
   const [root, setRoot] = useState<string | null>(null);
   const [folders, setFolders] = useState(new Map<string, Entry[]>());
   const [fileMenu, setFileMenu] = useState<{ x: number; y: number; entry: Entry } | null>(null);
@@ -310,6 +311,36 @@ function App() {
       window.removeEventListener("keydown", escape);
     };
   }, [fileMenu]);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    let saved: { root?: string; tabs?: string[]; active?: string };
+    try { saved = JSON.parse(localStorage.getItem("swiftforge.session") ?? "{}") ?? {}; }
+    catch { saved = {}; }
+    if (typeof saved.root !== "string") {
+      setSessionRestored(true);
+      return;
+    }
+    const savedRoot = saved.root;
+    void run(async () => {
+      try {
+        const path = await invoke<string>("restore_workspace", { path: savedRoot });
+        await adoptProject(path);
+        const paths = Array.isArray(saved.tabs) ? saved.tabs.filter(item => typeof item === "string") : [];
+        for (const file of paths) {
+          try { await openFile(path, file); }
+          catch { /* A previously open file may have been moved or deleted. */ }
+        }
+        if (saved.active && documents.current.has(saved.active)) setActive(saved.active);
+      } finally {
+        setSessionRestored(true);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (sessionRestored) localStorage.setItem("swiftforge.session", JSON.stringify({ root, tabs, active }));
+  }, [sessionRestored, root, tabs, active]);
 
   function showFileMenu(event: MouseEvent, entry: Entry) {
     event.preventDefault();

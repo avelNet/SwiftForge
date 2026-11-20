@@ -1,0 +1,6 @@
+Ubuntu, iLoader 2.4.2, iPhone с iOS 26.4.2.
+Первая попытка импорта: Invalid bundle: Application path does not exist.
+Повторный импорт копии того же IPA из «Загрузок»: statx и openat успешны.
+iLoader: InstallComplete.
+Проверка по USB, ideviceinstaller list:
+dev.swiftforge.counter.[Team ID скрыт], "1.0", "SwiftForge Counter"

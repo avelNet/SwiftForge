@@ -1,7 +1,7 @@
 import { useLocale } from "./i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { AirplayIcon, DeviceMobileIcon, StopIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { AirplayIcon, DeviceMobileIcon, GearSixIcon, StopIcon, WarningCircleIcon } from "@phosphor-icons/react";
 
 interface Receiver {
   name: string;
@@ -18,6 +18,9 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
   const [frame, setFrame] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [frameRatio, setFrameRatio] = useState(0);
+  const [previewSize, setPreviewSize] = useState("fit");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showFrame, setShowFrame] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const stopping = useRef(false);
@@ -101,9 +104,21 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
     <aside className="iphone-panel" id="iphone-preview" aria-label={t("iPhone preview")} hidden={!visible}>
       <div className="panel-heading iphone-heading">
         <h2><DeviceMobileIcon size={16} aria-hidden /> iPhone</h2>
-        <span className={`connection-dot ${connection}`} aria-hidden="true" />
+        <div className="phone-heading-actions">
+          <span className={`connection-dot ${connection}`} aria-hidden="true" />
+          <button className="icon-button" aria-label={t("Device display settings")} title={t("Device display settings")}
+            aria-expanded={settingsOpen} aria-controls="device-display-settings" onClick={() => setSettingsOpen(value => !value)}>
+            <GearSixIcon size={16} />
+          </button>
+        </div>
       </div>
-      <div className="device-stage">
+      <div className="device-display-settings" id="device-display-settings" hidden={!settingsOpen}>
+        <label>{t("Preview size")} <select value={previewSize} onChange={event => setPreviewSize(event.target.value)}>
+          <option value="fit">{t("Fit")}</option><option value="compact">{t("Compact")}</option>
+        </select></label>
+        <label><input type="checkbox" checked={showFrame} onChange={event => setShowFrame(event.target.checked)} /> {t("Show phone frame")}</label>
+      </div>
+      <div className="device-stage" data-size={previewSize} data-frame={showFrame}>
         <div className={`phone-outline${frame ? " showing-video" : ""}${frameRatio > 1 ? " landscape" : ""}`}
           style={frameRatio ? { "--screen-ratio": frameRatio } as CSSProperties : undefined}>
           <span className="phone-buttons" aria-hidden="true" />

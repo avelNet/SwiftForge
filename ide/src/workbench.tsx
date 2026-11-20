@@ -1,6 +1,6 @@
 import { useLocale } from "./i18n";
 import {
-  CaretRightIcon, CodeIcon, FileCodeIcon, FileTextIcon, FolderIcon, FolderOpenIcon,
+  CaretRightIcon, CodeIcon, FileCodeIcon, FileTextIcon, FolderIcon, FolderOpenIcon, ImageIcon, PackageIcon, TranslateIcon,
   SidebarSimpleIcon,
 } from "@phosphor-icons/react";
 import { editor } from "monaco-editor/esm/vs/editor/editor.api.js";
@@ -37,15 +37,21 @@ editor.defineTheme(workbenchTheme, {
 });
 
 export function FileGlyph({ path }: { path: string }) {
-  if (path.endsWith(".swift")) return <CodeIcon className="file-glyph swift" size={15} aria-hidden />;
-  if (/\.(?:json|ya?ml|toml)$/.test(path)) return <FileCodeIcon className="file-glyph config" size={15} aria-hidden />;
+  const name = path.split("/").at(-1)?.toLowerCase() ?? "";
+  if (name === "package.swift" || name === "package.resolved") return <PackageIcon className="file-glyph package" size={15} aria-hidden />;
+  if (name.endsWith(".swift")) return <CodeIcon className="file-glyph swift" size={15} aria-hidden />;
+  if (/\.(?:xcstrings|strings|stringsdict)$/.test(name)) return <TranslateIcon className="file-glyph localization" size={15} aria-hidden />;
+  if (/\.(?:png|jpe?g|heic|gif|svg|webp|pdf)$/.test(name)) return <ImageIcon className="file-glyph asset" size={15} aria-hidden />;
+  if (/\.(?:json|ya?ml|toml|plist|entitlements|xcconfig)$/.test(name)) return <FileCodeIcon className="file-glyph config" size={15} aria-hidden />;
   return <FileTextIcon className="file-glyph" size={15} aria-hidden />;
 }
 
-export function DirectoryGlyph({ expanded }: { expanded: boolean }) {
+export function DirectoryGlyph({ expanded, path }: { expanded: boolean; path: string }) {
   return <>
     <CaretRightIcon className={expanded ? "tree-caret expanded" : "tree-caret"} size={12} aria-hidden />
-    {expanded ? <FolderOpenIcon className="folder-glyph" size={16} aria-hidden /> : <FolderIcon className="folder-glyph" size={16} aria-hidden />}
+    {/\.(?:xcassets|imageset|appiconset)$/i.test(path)
+      ? <ImageIcon className="file-glyph asset" size={16} aria-hidden />
+      : expanded ? <FolderOpenIcon className="folder-glyph" size={16} aria-hidden /> : <FolderIcon className="folder-glyph" size={16} aria-hidden />}
   </>;
 }
 

@@ -12,7 +12,7 @@ import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
-  CaretRightIcon, ArrowsInLineVerticalIcon, GithubLogoIcon, ListNumbersIcon, ArrowsLeftRightIcon, ArrowBendRightDownIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
+  SidebarSimpleIcon, CaretRightIcon, ArrowsInLineVerticalIcon, GithubLogoIcon, ListNumbersIcon, ArrowsLeftRightIcon, ArrowBendRightDownIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
   FolderOpenIcon, GearSixIcon, MagnifyingGlassIcon, PlusIcon, TerminalIcon, TerminalWindowIcon, WarningCircleIcon, XIcon,
 } from "@phosphor-icons/react";
 import "@fontsource/geist/400.css";
@@ -74,7 +74,7 @@ function FileTree({ path, folders, expanded, active, onSelect }: {
     return <li key={entry.path}>
       <button className={active === entry.path ? "entry selected" : "entry"} onClick={() => onSelect(entry)}
         title={leaf.path} aria-expanded={entry.directory ? open : undefined}>
-        {entry.directory ? <DirectoryGlyph expanded={open} /> :
+        {entry.directory ? <DirectoryGlyph expanded={open} path={leaf.path} /> :
           <><span className="tree-spacer" /><FileGlyph path={entry.path} /></>}
         <span className="entry-name">{names.join(" / ")}</span>
       </button>
@@ -102,9 +102,11 @@ function App() {
   const [gitRevision, setGitRevision] = useState(0);
 
   function toggleSidebar(side: "explorer" | "github") {
+    setDeviceMode(false);
     setShowExplorer(activeSidebar !== side || !showExplorer);
     setActiveSidebar(side);
   }
+  const [deviceMode, setDeviceMode] = useState(false);
   const [showPhone, setShowPhone] = useState(true);
   const [mirrorActive, setMirrorActive] = useState(false);
   const [explorerWidth, setExplorerWidth] = useState(220);
@@ -148,10 +150,12 @@ function App() {
   useEffect(() => {
     document.documentElement.lang = preferences.language;
     document.documentElement.dataset.theme = preferences.theme;
+    document.documentElement.dataset.accent = preferences.accent;
     localStorage.setItem("swiftforge.preferences", JSON.stringify(preferences));
-    editor.setTheme(preferences.theme === "light" ? "vs" : workbenchTheme);
+    editor.setTheme(preferences.syntaxTheme === "auto" ? (preferences.theme === "light" ? "vs" : workbenchTheme) : preferences.syntaxTheme);
     instance.current?.updateOptions({
       fontSize: preferences.fontSize, lineHeight: Math.round(preferences.fontSize * 1.55),
+      lineNumbers: preferences.lineNumbers ? "on" : "off",
       wordWrap: preferences.wrap ? "on" : "off", minimap: { enabled: preferences.minimap },
     });
     for (const { model } of documents.current.values()) model.updateOptions({ tabSize: preferences.tabSize });
@@ -427,7 +431,7 @@ function App() {
 
   return (
     <Locale.Provider value={t}>
-    <main className="app" style={layout}>
+    <main className="app" data-device-mode={deviceMode && showPhone} style={layout}>
       <header className="toolbar">
         <div className="brand">
           <span className="brand-mark"><CodeIcon size={18} weight="bold" aria-hidden /></span>
@@ -443,14 +447,20 @@ function App() {
           { label: t("Edit"), items: [
             { name: t("Undo"), shortcut: "Ctrl+Z", enabled: !!active, run: () => instance.current?.trigger("menu", "undo", null) },
             { name: t("Redo"), shortcut: "Ctrl+Y", enabled: !!active, run: () => instance.current?.trigger("menu", "redo", null) },
+            { name: t("Command palette"), shortcut: "F1", enabled: !!active,
+              run: () => void instance.current?.getAction("editor.action.quickCommand")?.run() },
+            { name: t("Toggle line comment"), shortcut: "Ctrl+/", enabled: !!active,
+              run: () => void instance.current?.getAction("editor.action.commentLine")?.run() },
             { name: t("Find"), shortcut: "Ctrl+F", enabled: !!active, run: () => void instance.current?.getAction("actions.find")?.run() },
           ] },
           { label: t("View"), items: [
+            { name: t("Show editor minimap"), run: () => setPreferences(value => ({ ...value, minimap: !value.minimap })) },
+            { name: t("Wrap long lines"), run: () => setPreferences(value => ({ ...value, wrap: !value.wrap })) },
             { name: t("Zoom in"), shortcut: "Ctrl++", enabled: preferences.zoom < zoomLevels.at(-1)!, run: () => changeZoom(1) },
             { name: t("Zoom out"), shortcut: "Ctrl+−", enabled: preferences.zoom > zoomLevels[0], run: () => changeZoom(-1) },
             { name: t("Reset zoom"), shortcut: "Ctrl+0", enabled: preferences.zoom !== 100, run: () => changeZoom(0) },
             { name: showExplorer ? t("Hide Explorer") : t("Show Explorer"), shortcut: "Ctrl+B", run: () => setShowExplorer(!showExplorer) },
-            { name: showPhone ? t("Hide iPhone") : t("Show iPhone"), run: () => setShowPhone(!showPhone) },
+            { name: showPhone ? t("Hide iPhone") : t("Show iPhone"), run: () => { setDeviceMode(false); setShowPhone(!showPhone); } },
             { name: build.visible ? t("Hide build output") : t("Show build output"), run: () => build.setVisible(!build.visible) },
             { name: terminalVisible ? t("Hide terminal") : t("Show terminal"), shortcut: "Ctrl+`", enabled: !!root, run: toggleTerminal },
           ] },
@@ -487,6 +497,14 @@ function App() {
             <FloppyDiskIcon size={17} aria-hidden /><span>{t("Save")}</span>
           </button>
         </div>
+        <div className="workbench-modes" role="group" aria-label={t("Workspace layout")}>
+          <button className="action" aria-label={t("Code")} title={t("Code")} aria-pressed={!showPhone}
+            onClick={() => { setShowPhone(false); setDeviceMode(false); }}><CodeIcon size={16} /><span>{t("Code")}</span></button>
+          <button className="action" aria-label={t("Split view")} title={t("Split view")} aria-pressed={showPhone && !deviceMode}
+            onClick={() => { setShowPhone(true); setDeviceMode(false); }}><ArrowsLeftRightIcon size={16} /><span>{t("Split view")}</span></button>
+          <button className="action" aria-label={t("Device")} title={t("Device")} aria-pressed={showPhone && deviceMode}
+            onClick={() => { setShowPhone(true); setDeviceMode(true); }}><DeviceMobileIcon size={16} /><span>{t("Device")}</span></button>
+        </div>
         {project && <span className="command-target" title={root ?? undefined}>
           <DeviceMobileIcon size={16} aria-hidden /><span>{project}</span><span>iOS · arm64</span>
         </span>}
@@ -508,7 +526,7 @@ function App() {
           disabled={!root} onClick={toggleTerminal}><TerminalIcon size={21} aria-hidden /></button>
         <button className="rail-action device-toggle" aria-label={t("Toggle iPhone panel")} aria-controls="iphone-preview"
           title={mirrorActive ? t("iPhone preview · receiver active") : t("iPhone preview")} aria-pressed={showPhone}
-          data-active={mirrorActive} onClick={() => setShowPhone(value => !value)}>
+          data-active={mirrorActive} onClick={() => { setDeviceMode(false); setShowPhone(value => !value); }}>
           <DeviceMobileIcon size={21} aria-hidden />
         </button>
       </nav>
@@ -557,6 +575,13 @@ function App() {
             ))}
           </div>
           <div className="editor-actions" aria-label={t("Editor commands")}>
+            <button className="icon-button editor-toggle" aria-label={t("Show editor minimap")} title={t("Show editor minimap")}
+              aria-pressed={preferences.minimap} onClick={() => setPreferences(value => ({ ...value, minimap: !value.minimap }))}>
+              <SidebarSimpleIcon size={16} />
+            </button>
+            <button className="icon-button" aria-label={t("Settings")} title={t("Settings")} onClick={() => setSettings(true)}>
+              <GearSixIcon size={16} />
+            </button>
             <button className="icon-button" aria-label={t("Find and replace")} title={t("Find and replace") + " · Ctrl+H"}
               onClick={() => void instance.current?.getAction("editor.action.startFindReplaceAction")?.run()}><ArrowsLeftRightIcon size={16} /></button>
             <button className="icon-button" aria-label={t("Go to line")} title={t("Go to line") + " · Ctrl+G"}
@@ -581,7 +606,7 @@ function App() {
         </div>
       </section>
 
-      {showPhone && <PanelDivider label={t("Resize iPhone preview")} side="right" width={phoneWidth} onResize={resizePhone} />}
+      {showPhone && !deviceMode && <PanelDivider label={t("Resize iPhone preview")} side="right" width={phoneWidth} onResize={resizePhone} />}
       <IPhonePanel visible={showPhone} onReceiverChange={setMirrorActive}>
         <DeviceTools key={root ?? ""} artifact={build.artifact} saveIPA={build.exportIPA}
           showOutput={() => build.setVisible(true)} write={build.write} />

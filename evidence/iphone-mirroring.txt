@@ -1,0 +1,7 @@
+Ubuntu 26.04.1, UxPlay 1.73.2-1 из репозитория Ubuntu, физический iPhone с iOS 26.4.2.
+Avahi обнаружил SwiftForge Ubuntu на Wi-Fi. iPhone подключился через «Повтор экрана» с PIN.
+Первый ввод PIN отклонён. Повторное сопряжение с новым PIN прошло.
+UxPlay: raop_rtp_mirror starting mirroring.
+GStreamer: ximagesink открыл окно SwiftForge Ubuntu.
+В окне Ubuntu появились экран iPhone и запущенный на нём SwiftForge Counter.
+Приёмник запущен с программным декодированием H.264 и отключённым звуком.

@@ -3,10 +3,11 @@ use serde::Serialize;
 use std::{
     env,
     io::{self, BufRead, BufReader, Read},
-    net::{Ipv4Addr, UdpSocket},
+    net::{Ipv4Addr, TcpListener, TcpStream},
     process::{Child, Command, Stdio},
-    sync::{Arc, Mutex},
+    sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex},
     thread,
+    time::Duration,
 };
 use tauri::State;
 
@@ -19,20 +20,18 @@ pub(crate) struct Mirror(Mutex<Option<Session>>);
 
 struct Session {
     receiver: Child,
-    decoder: Child,
     latest: Frame,
-    frames: thread::JoinHandle<()>,
+    stop: Arc<AtomicBool>,
+    frames: Option<thread::JoinHandle<()>>,
 }
 
 impl Session {
     fn next_frame(&mut self) -> Result<Option<String>, String> {
-        for (name, process) in [("UxPlay", &mut self.receiver), ("GStreamer", &mut self.decoder)] {
-            if let Some(status) = process.try_wait().map_err(|error| error.to_string())? {
-                return Err(format!("{name} stopped ({status}). Check the receiver and GStreamer dependencies."));
-            }
+        if let Some(status) = self.receiver.try_wait().map_err(|error| error.to_string())? {
+            return Err(format!("UxPlay stopped ({status}). Start mirroring again and reconnect your iPhone."));
         }
-        if self.frames.is_finished() {
-            return Err("The iPhone video stream could not be decoded.".into());
+        if self.frames.as_ref().is_some_and(|frames| frames.is_finished()) {
+            return Err("The local iPhone video reader stopped.".into());
         }
         let frame = self.latest.lock().map_err(|error| error.to_string())?.take();
         Ok(frame.map(|bytes| STANDARD.encode(bytes)))
@@ -41,10 +40,12 @@ impl Session {
 
 impl Drop for Session {
     fn drop(&mut self) {
+        self.stop.store(true, Ordering::Relaxed);
         let _ = self.receiver.kill();
-        let _ = self.decoder.kill();
         let _ = self.receiver.wait();
-        let _ = self.decoder.wait();
+        if let Some(frames) = self.frames.take() {
+            let _ = frames.join();
+        }
     }
 }
 
@@ -52,6 +53,23 @@ impl Drop for Session {
 pub(crate) struct Receiver {
     name: &'static str,
     pin: String,
+}
+
+struct VideoStream<'a> {
+    stream: TcpStream,
+    stop: &'a AtomicBool,
+}
+
+impl Read for VideoStream<'_> {
+    fn read(&mut self, bytes: &mut [u8]) -> io::Result<usize> {
+        while !self.stop.load(Ordering::Relaxed) {
+            match self.stream.read(bytes) {
+                Err(error) if matches!(error.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut) => {}
+                result => return result,
+            }
+        }
+        Ok(0)
+    }
 }
 
 fn read_frame(reader: &mut impl BufRead) -> io::Result<Option<Vec<u8>>> {
@@ -108,55 +126,68 @@ fn start() -> Result<(Session, Receiver), String> {
     let mut random = [0; 4];
     getrandom::fill(&mut random).map_err(|error| error.to_string())?;
     let pin = format!("{:04}", u32::from_ne_bytes(random) % 10_000);
-    let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).map_err(|error| error.to_string())?;
+    let socket = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).map_err(|error| error.to_string())?;
+    socket.set_nonblocking(true).map_err(|error| error.to_string())?;
     let port = socket.local_addr().map_err(|error| error.to_string())?.port();
-    drop(socket);
 
-    let mut decoder = child_command("gst-launch-1.0")
-        .args([
-            "-q", "udpsrc", "address=127.0.0.1", &format!("port={port}"),
-            "caps=application/x-rtp,media=video,encoding-name=H264,clock-rate=90000,payload=96",
-            "!", "rtpjitterbuffer", "latency=40", "drop-on-latency=true",
-            "!", "rtph264depay", "!", "h264parse", "!", "avdec_h264",
-            "!", "videoconvert", "!", "videoscale", "!", "videorate", "drop-only=true",
-            "!", "video/x-raw,width=480,pixel-aspect-ratio=1/1,framerate=12/1",
-            "!", "jpegenc", "quality=80", "!", "multipartmux", "boundary=swiftforge",
-            "!", "fdsink", "fd=1", "sync=false",
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .spawn()
-        .map_err(|error| format!("Could not start GStreamer: {error}"))?;
-
+    let video = format!(
+        concat!(
+            "videoconvert ! tee name=frames frames. ! queue leaky=downstream max-size-buffers=2 ",
+            "! videoscale ! video/x-raw,width=480,pixel-aspect-ratio=1/1 ! jpegenc quality=80 ",
+            "! multipartmux boundary=swiftforge ! tcpclientsink host=127.0.0.1 port={} sync=false ",
+            "frames. ! queue"
+        ),
+        port,
+    );
     let binary = env::var_os("SWIFTFORGE_UXPLAY").unwrap_or_else(|| "uxplay".into());
     let receiver = child_command(binary)
         .args([
             "-rc", "/dev/null", "-n", RECEIVER_NAME, "-nh", "-pin", &pin, "-a",
-            "-vrtp", &format!("config-interval=1 ! udpsink host=127.0.0.1 port={port}"),
+            "-fps", "15", "-vsync", "no", "-srgb", "no", "-avdec", "-vc", &video, "-vs", "fakesink",
         ])
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .spawn();
-    let receiver = match receiver {
-        Ok(receiver) => receiver,
-        Err(error) => {
-            let _ = decoder.kill();
-            let _ = decoder.wait();
-            return Err(format!("Could not start UxPlay: {error}"));
-        }
-    };
+        .spawn()
+        .map_err(|error| format!("Could not start UxPlay: {error}"))?;
 
-    let mut frames = BufReader::new(decoder.stdout.take().expect("decoder stdout is piped"));
     let latest: Frame = Arc::default();
+    let stop = Arc::new(AtomicBool::new(false));
     let buffer = Arc::clone(&latest);
+    let stopping = Arc::clone(&stop);
     let frames = thread::spawn(move || {
-        while let Ok(Some(frame)) = read_frame(&mut frames) {
-            let Ok(mut latest) = buffer.lock() else { break };
-            *latest = Some(frame);
+        while !stopping.load(Ordering::Relaxed) {
+            match socket.accept() {
+                Ok((stream, _)) => {
+                    if let Err(error) = stream.set_read_timeout(Some(Duration::from_millis(250))) {
+                        eprintln!("SwiftForge mirror: {error}");
+                        continue;
+                    }
+                    let mut stream = BufReader::new(VideoStream { stream, stop: &stopping });
+                    loop {
+                        match read_frame(&mut stream) {
+                            Ok(Some(frame)) => {
+                                let Ok(mut latest) = buffer.lock() else { return };
+                                *latest = Some(frame);
+                            }
+                            Ok(None) => break,
+                            Err(error) => {
+                                eprintln!("SwiftForge mirror: {error}");
+                                break;
+                            }
+                        }
+                    }
+                }
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                    thread::sleep(Duration::from_millis(25));
+                }
+                Err(error) => {
+                    eprintln!("SwiftForge mirror: {error}");
+                    break;
+                }
+            }
         }
     });
 
-    Ok((Session { receiver, decoder, latest, frames }, Receiver { name: RECEIVER_NAME, pin }))
+    Ok((Session { receiver, latest, stop, frames: Some(frames) }, Receiver { name: RECEIVER_NAME, pin }))
 }
 
 #[tauri::command]

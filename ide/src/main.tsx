@@ -14,6 +14,7 @@ import "@fontsource/geist/500.css";
 import "@fontsource/geist/600.css";
 import "@fontsource/geist-mono/400.css";
 import "./styles.css";
+import { IPhonePanel } from "./IPhonePanel";
 
 self.MonacoEnvironment = {
   getWorker: (_module, label) => label === "json" ? new JsonWorker() : new EditorWorker(),
@@ -238,6 +239,7 @@ function App() {
           {!active && <div className="empty">{root ? "Select a file to edit." : "Open a project folder to start."}</div>}
         </div>
       </section>
+      <IPhonePanel />
       <footer className={notice ? "status error" : "status"} role="status">
         {notice || (busy ? "Working…" : active || root || "No project open")}
       </footer>

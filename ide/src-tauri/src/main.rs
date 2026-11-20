@@ -5,7 +5,9 @@ use std::{
     path::{Component, Path, PathBuf},
     sync::Mutex,
 };
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
+
+mod mirror;
 use tauri_plugin_dialog::DialogExt;
 
 const TEXT_LIMIT: usize = 2 * 1024 * 1024;
@@ -141,8 +143,22 @@ fn save_document(
 fn main() {
     tauri::Builder::default()
         .manage(Workspace::default())
+        .manage(mirror::Mirror::default())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![open_workspace, list_directory, read_document, save_document])
-        .run(tauri::generate_context!())
-        .expect("SwiftForge could not start");
+        .invoke_handler(tauri::generate_handler![
+            open_workspace,
+            list_directory,
+            read_document,
+            save_document,
+            mirror::mirror_start,
+            mirror::mirror_next,
+            mirror::mirror_stop
+        ])
+        .build(tauri::generate_context!())
+        .expect("SwiftForge could not start")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                let _ = mirror::mirror_stop(app.state());
+            }
+        });
 }

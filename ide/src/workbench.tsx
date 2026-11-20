@@ -6,6 +6,7 @@ import {
 import { editor } from "monaco-editor/esm/vs/editor/editor.api.js";
 
 export const workbenchTheme = "swiftforge";
+export const lightWorkbenchTheme = "swiftforge-light";
 
 editor.defineTheme(workbenchTheme, {
   base: "vs-dark",
@@ -33,6 +34,30 @@ editor.defineTheme(workbenchTheme, {
     "editorWidget.border": "#39364D",
     "editorSuggestWidget.selectedBackground": "#473331",
     "editorOverviewRuler.border": "#161621",
+    "minimap.background": "#1c1c2a",
+    "minimapSlider.background": "#77749038",
+    "minimapSlider.hoverBackground": "#77749065",
+  },
+});
+
+editor.defineTheme(lightWorkbenchTheme, {
+  base: "vs",
+  inherit: true,
+  rules: [
+    { token: "comment", foreground: "52684B" },
+    { token: "keyword", foreground: "813371" },
+    { token: "string", foreground: "923C25" },
+  ],
+  colors: {
+    "editor.background": "#F8F7FB",
+    "editorGutter.background": "#F8F7FB",
+    "editor.foreground": "#252235",
+    "editorLineNumber.foreground": "#69667C",
+    "editor.lineHighlightBackground": "#EFEDF6",
+    "editor.selectionBackground": "#DDD3F4",
+    "minimap.background": "#EFEDF5",
+    "minimapSlider.background": "#77749036",
+    "minimapSlider.hoverBackground": "#77749055",
   },
 });
 

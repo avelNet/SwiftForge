@@ -68,7 +68,7 @@ button svg { flex: none; }
   background: #4a3026;
   color: #fff;
 }
-.toolbar-settings { margin-left: auto; }
+.toolbar-settings { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .command-bar {
   grid-area: 2 / 3 / 3 / -1;
   display: flex;
@@ -563,12 +563,12 @@ kbd { border: 1px solid #24160f40; border-radius: 4px; padding: 0 4px; font: 12p
 [data-theme="light"] {
   color-scheme: light;
   color: #292725;
-  background: #ece9e4;
-  --rail: #f4f1ed;
-  --surface: #fff;
-  --raised: #eae5df;
-  --hover: #ded6cf;
-  --divider: #d2c9bf;
+  background: #eae8f0;
+  --rail: #f4f2f8;
+  --surface: #f8f7fb;
+  --raised: #e9e6f0;
+  --hover: #dedbe9;
+  --divider: #d8d4e2;
   --subtle: #6b625b;
   --muted: #4c4540;
   --accent: #9b4520;
@@ -679,3 +679,13 @@ kbd { border: 1px solid #24160f40; border-radius: 4px; padding: 0 4px; font: 12p
 @media (max-width: 620px) {
   .command-bar .project-actions { display: none; }
 }
+
+
+.workspace, .explorer, .iphone-panel, .console-dock { border-radius: 6px; }
+.editor-navigation { background: var(--surface); }
+[data-theme="light"] .icon-button:hover:not(:disabled),
+[data-theme="light"] .rail-action:hover:not(:disabled) { color: var(--muted); }
+
+.explorer-root { width: 100%; text-align: start; }
+.explorer-root:hover, .explorer-root:focus-visible { background: var(--raised); }
+.entry-parent { overflow-wrap: anywhere; color: var(--muted); }

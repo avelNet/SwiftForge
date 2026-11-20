@@ -30,6 +30,7 @@ export class SwiftLanguage {
   private queue = Promise.resolve();
   private readonly waiting = new Map<number, { resolve: (value: unknown) => void; timer: number }>();
   private readonly documents = new Map<string, { model: editor.ITextModel; subscription: { dispose(): void } }>();
+  private readonly interfaces = new Set<editor.ITextModel>();
   private readonly providers: { dispose(): void }[] = [];
 
   constructor(private readonly root: string, private readonly onStatus: (status: string) => void) {}
@@ -104,6 +105,8 @@ export class SwiftLanguage {
     }
     this.waiting.clear();
     this.documents.clear();
+    for (const model of this.interfaces) model.dispose();
+    this.interfaces.clear();
   }
 
   private send(packet: Packet) {
@@ -234,8 +237,22 @@ export class SwiftLanguage {
           if (!this.documents.has(model.uri.toString())) return null;
           const result = await this.request("textDocument/definition", params(model, at)) as WorkspaceLocation[] | WorkspaceLocation | null;
           if (!result) return null;
-          return (Array.isArray(result) ? result : [result]).filter(item => item.uri && item.range)
+          const definitions = (Array.isArray(result) ? result : [result]).filter(item => item.uri && item.range)
             .map(item => ({ uri: Uri.parse(item.uri), range: toRange(item.range) }));
+          return (await Promise.all(definitions.map(async definition => {
+            const { uri } = definition;
+            if (uri.scheme !== "file" || uri.fsPath.startsWith(this.root + "/")) return definition;
+            try {
+              if (!editor.getModel(uri)) {
+                const source = await invoke<string>("read_generated_interface", { path: uri.fsPath });
+                if (!this.active) return null;
+                if (!editor.getModel(uri)) this.interfaces.add(editor.createModel(source, "swift", uri));
+              }
+              return definition;
+            } catch {
+              return null;
+            }
+          }))).filter(definition => definition !== null);
         },
       }),
     );

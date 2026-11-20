@@ -4,7 +4,7 @@ import { FolderOpenIcon, GithubLogoIcon, XIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export const accents = ["orange", "blue", "violet", "green"] as const;
-export const syntaxThemes = ["auto", "vs", "vs-dark", "hc-black", "hc-light"] as const;
+export const syntaxThemes = ["auto", "contrast"] as const;
 
 export interface Preferences {
   accent: typeof accents[number];
@@ -27,7 +27,7 @@ export function loadPreferences(): Preferences {
     const value = JSON.parse(localStorage.getItem("swiftforge.preferences") ?? "{}");
     return {
       accent: accents.includes(value.accent) ? value.accent : "orange",
-      syntaxTheme: syntaxThemes.includes(value.syntaxTheme) ? value.syntaxTheme : "auto",
+      syntaxTheme: value.syntaxTheme === "contrast" || value.syntaxTheme === "hc-black" || value.syntaxTheme === "hc-light" ? "contrast" : "auto",
       lineNumbers: value.lineNumbers !== false,
       language: value.language === "ru" ? "ru" : "en",
       zoom: zoomLevels.includes(value.zoom) ? value.zoom : 100,
@@ -92,6 +92,34 @@ function WorkbenchDialog({ title, close, busy = false, children }: {
   </dialog>;
 }
 
+export function CreateEntryDialog({ folder, parent, close, create }: {
+  folder: boolean; parent: string; close: () => void; create: (name: string) => Promise<void>;
+}) {
+  const t = useLocale();
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  return <WorkbenchDialog title={t(folder ? "New folder" : "New file")} close={close} busy={busy}>
+    <form className="settings-fields" onSubmit={async event => {
+      event.preventDefault();
+      if (busy || !name.trim()) return;
+      setBusy(true);
+      setError("");
+      try { await create(name.trim()); close(); }
+      catch (problem) { setError(t(String(problem))); }
+      finally { setBusy(false); }
+    }}>
+      <label>{t("Name")}<input autoFocus required value={name} onChange={event => setName(event.target.value)} /></label>
+      <code className="entry-parent" title={parent}>{parent}</code>
+      {error && <p role="alert">{error}</p>}
+      <div className="dialog-actions">
+        <button className="action" type="button" disabled={busy} onClick={close}>{t("Cancel")}</button>
+        <button className="action primary" type="submit" disabled={busy || !name.trim()}>{t("Create")}</button>
+      </div>
+    </form>
+  </WorkbenchDialog>;
+}
+
 export function Settings({ value, change, close }: {
   value: Preferences; change: (value: Preferences) => void; close: () => void;
 }) {
@@ -115,7 +143,7 @@ export function Settings({ value, change, close }: {
       </select></label>
       <label>{t("Code color theme")}<select value={value.syntaxTheme}
         onChange={event => change({ ...value, syntaxTheme: event.target.value as Preferences["syntaxTheme"] })}>
-        {syntaxThemes.map((theme, index) => <option key={theme} value={theme}>{t(["Match interface", "Light", "Dark", "High contrast dark", "High contrast light"][index])}</option>)}
+        {syntaxThemes.map((theme, index) => <option key={theme} value={theme}>{t(["Match interface", "High contrast"][index])}</option>)}
       </select></label>
       <label className="checkbox-label"><input type="checkbox" checked={value.lineNumbers}
         onChange={event => change({ ...value, lineNumbers: event.target.checked })} /> {t("Show line numbers")}</label>

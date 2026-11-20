@@ -96,6 +96,36 @@ fn list_directory(workspace: State<'_, Workspace>, root: &str, path: &str) -> Re
     Ok(entries)
 }
 
+#[tauri::command]
+fn create_entry(workspace: State<'_, Workspace>, root: &str, parent: &str, name: &str, directory: bool) -> Result<()> {
+    if name.trim() != name || name.is_empty() || name.starts_with('.') || name == "node_modules"
+        || name.contains(['/', '\\', '\0', ':']) || name.chars().any(char::is_control)
+    {
+        return Err("Enter a visible file or folder name without path separators.".into());
+    }
+    let state = workspace.lock().map_err(|error| error.to_string())?;
+    let target = workspace_path(active_root(&state, root)?, parent)?.join(name);
+    let created = if directory {
+        fs::create_dir(target)
+    } else {
+        fs::OpenOptions::new().write(true).create_new(true).open(target).map(drop)
+    };
+    created.map_err(|error| if error.kind() == std::io::ErrorKind::AlreadyExists {
+        "An item with this name already exists.".into()
+    } else { error.to_string() })
+}
+
+#[tauri::command]
+fn read_generated_interface(path: &str) -> Result<String> {
+    let generated = std::env::temp_dir().join("sourcekit-lsp").join("GeneratedInterfaces");
+    let relative = Path::new(path).strip_prefix(&generated).map_err(|_| "Unsupported definition source.")?;
+    if relative.components().count() != 2 || relative.extension().and_then(|value| value.to_str()) != Some("swiftinterface") {
+        return Err("Unsupported definition source.".into());
+    }
+    let file = workspace_path(&generated, relative.to_str().ok_or("Unsupported definition source.")?)?;
+    load_text(&file)
+}
+
 fn load_text(path: &Path) -> Result<String> {
     if !path.is_file() {
         return Err("Select a project file.".into());
@@ -157,6 +187,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             open_workspace,
             list_directory,
+            create_entry,
+            read_generated_interface,
             read_document,
             save_document,
             build::create_project,

@@ -519,3 +519,11 @@ kbd { border: 1px solid #24160f40; border-radius: 4px; padding: 0 4px; font: 12p
 .terminal-pane .output-toolbar { color: var(--muted); }
 .terminal-host { min-height: 0; flex: 1; padding: 8px 12px; background: #181818; overflow: hidden; }
 .terminal-host .xterm { height: 100%; }
+.github-sidebar-tools { display: grid; gap: 8px; padding: 12px; }
+.github-changes-title { font-size: 12px; margin: 8px 12px; display: flex; justify-content: space-between; color: var(--muted); }
+.git-change .entry-name { flex: 1; }
+.git-code { color: var(--accent); font-family: "Geist Mono", monospace; }
+.sidebar-note { padding: 0 12px; font-size: 12px; color: var(--subtle); overflow-wrap: anywhere; }
+.editor-navigation { display: flex; justify-content: space-between; border-bottom: 1px solid var(--divider); min-width: 0; }
+.editor-navigation .breadcrumbs { min-width: 0; border: 0; }
+.editor-actions { display: flex; gap: 4px; flex: none; align-items: center; padding: 0 8px; }

@@ -167,6 +167,7 @@ fn main() {
             build::toolchain_status,
             github::github_clone,
             github::github_status,
+            github::github_overview,
             github::github_open,
             language::language_start,
             language::language_send,

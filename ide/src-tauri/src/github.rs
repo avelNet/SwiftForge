@@ -63,3 +63,40 @@ pub(crate) fn github_open(workspace: State<'_, Workspace>, root: &str) -> Result
         .map_err(|error| error.to_string())?;
     Ok(())
 }
+
+#[derive(serde::Serialize)]
+pub(crate) struct GitChange {
+    path: String,
+    status: String,
+}
+
+#[derive(serde::Serialize)]
+pub(crate) struct GitOverview {
+    branch: String,
+    changes: Vec<GitChange>,
+}
+
+#[tauri::command]
+pub(crate) async fn github_overview(workspace: State<'_, Workspace>, root: String) -> Result<GitOverview> {
+    let root = {
+        let state = workspace.lock().map_err(|error| error.to_string())?;
+        active_root(&state, &root)?.to_owned()
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        let prefix = execute(&["rev-parse", "--show-prefix"], &root)?;
+        let data = execute(&["status", "--porcelain=v1", "-z", "--branch", "--untracked-files=all", "--", "."], &root)?;
+        let mut records = data.split('\0');
+        let branch = records.next().and_then(|line| line.strip_prefix("## "))
+            .unwrap_or("Detached HEAD").to_owned();
+        let mut changes = Vec::new();
+        while let Some(record) = records.next() {
+            let Some((status, path)) = record.split_at_checked(3) else { continue };
+            let status = status.trim().to_owned();
+            if status.contains(['R', 'C']) { records.next(); }
+            if let Some(path) = path.strip_prefix(&prefix) {
+                changes.push(GitChange { path: path.to_owned(), status });
+            }
+        }
+        Ok(GitOverview { branch, changes })
+    }).await.map_err(|error| error.to_string())?
+}

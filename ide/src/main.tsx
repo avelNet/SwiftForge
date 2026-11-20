@@ -331,6 +331,7 @@ function App() {
           path = children[0].path;
         }
         open.add(entry.path);
+        setEntryParent(path);
         setFolders(next);
         setExpanded(open);
         return;

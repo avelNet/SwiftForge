@@ -9,6 +9,7 @@ interface Receiver {
 export function IPhonePanel() {
   const [receiver, setReceiver] = useState<Receiver | null>(null);
   const [frame, setFrame] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const stopping = useRef(false);
@@ -18,16 +19,20 @@ export function IPhonePanel() {
     let active = true;
     let timer: number;
     let lastFrame = 0;
+    let polling = false;
 
     async function poll() {
+      if (polling || !active || stopping.current) return;
+      polling = true;
       try {
         const image = await invoke<string | null>("mirror_next");
         if (!active || stopping.current) return;
         if (image) {
           lastFrame = performance.now();
           setFrame(`data:image/jpeg;base64,${image}`);
+          setStale(false);
         } else if (lastFrame && performance.now() - lastFrame > 5_000) {
-          setFrame(null);
+          setStale(true);
         }
         timer = window.setTimeout(poll, 80);
       } catch (problem) {
@@ -35,13 +40,23 @@ export function IPhonePanel() {
         setError(String(problem));
         setReceiver(null);
         setFrame(null);
+      } finally {
+        polling = false;
       }
     }
 
+    function resume() {
+      if (document.visibilityState !== "visible" || polling) return;
+      window.clearTimeout(timer);
+      void poll();
+    }
+
+    document.addEventListener("visibilitychange", resume);
     void poll();
     return () => {
       active = false;
       window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", resume);
     };
   }, [receiver]);
 
@@ -55,6 +70,7 @@ export function IPhonePanel() {
         setReceiver(null);
         setFrame(null);
       } else {
+        setStale(false);
         stopping.current = false;
         setReceiver(await invoke<Receiver>("mirror_start"));
       }
@@ -88,7 +104,7 @@ export function IPhonePanel() {
             </div>}
       </div>
       <p className={error ? "iphone-status error" : "iphone-status"} role="status">
-        {error || (frame ? "Live · control on iPhone" : receiver ? "Waiting for iPhone" : "Receiver off")}
+        {error || (frame ? (stale ? "Last frame · waiting for updates" : "Live · control on iPhone") : receiver ? "Waiting for iPhone" : "Receiver off")}
       </p>
     </aside>
   );

@@ -1,5 +1,7 @@
+import { Locale, translator } from "./i18n";
 import { createRoot } from "react-dom/client";
-import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { editor, Uri, type IPosition, type IRange } from "monaco-editor/esm/vs/editor/editor.api.js";
 import "monaco-editor/esm/vs/editor/editor.all.js";
 import "monaco-editor/esm/vs/basic-languages/swift/swift.contribution.js";
@@ -10,7 +12,7 @@ import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
-  CaretRightIcon, GithubLogoIcon, ListNumbersIcon, ArrowsLeftRightIcon, ArrowBendRightDownIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
+  CaretRightIcon, ArrowsInLineVerticalIcon, GithubLogoIcon, ListNumbersIcon, ArrowsLeftRightIcon, ArrowBendRightDownIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
   FolderOpenIcon, GearSixIcon, MagnifyingGlassIcon, PlusIcon, TerminalIcon, TerminalWindowIcon, WarningCircleIcon, XIcon,
 } from "@phosphor-icons/react";
 import "@fontsource/geist/400.css";
@@ -24,7 +26,7 @@ import { DeviceTools } from "./DeviceTools";
 import { TerminalPane } from "./TerminalPane";
 import { NewProject, useBuild } from "./BuildWorkspace";
 import { SwiftLanguage } from "./swift-language";
-import { GitHubClone, Settings, WorkbenchMenu, loadPreferences } from "./WorkbenchTools";
+import { GitHubClone, Settings, WorkbenchMenu, loadPreferences, zoomLevels } from "./WorkbenchTools";
 import { DirectoryGlyph, ExplorerButton, FileGlyph, PanelDivider, workbenchTheme } from "./workbench";
 
 self.MonacoEnvironment = {
@@ -52,29 +54,39 @@ function language(path: string) {
   return "plaintext";
 }
 
-function FileTree({ path, folders, active, onSelect }: {
+function FileTree({ path, folders, expanded, active, onSelect }: {
   path: string;
   folders: Map<string, Entry[]>;
+  expanded: Set<string>;
   active: string | null;
   onSelect: (entry: Entry) => void;
 }) {
-  return <ul>{folders.get(path)?.map(entry => (
-    <li key={entry.path}>
+  return <ul className="file-tree">{folders.get(path)?.map(entry => {
+    const names = [entry.name];
+    let leaf = entry;
+    while (leaf.directory) {
+      const children = folders.get(leaf.path);
+      if (children?.length !== 1 || !children[0].directory) break;
+      leaf = children[0];
+      names.push(leaf.name);
+    }
+    const open = entry.directory && expanded.has(entry.path);
+    return <li key={entry.path}>
       <button className={active === entry.path ? "entry selected" : "entry"} onClick={() => onSelect(entry)}
-        title={entry.path} aria-expanded={entry.directory ? folders.has(entry.path) : undefined}>
-        {entry.directory ? <DirectoryGlyph expanded={folders.has(entry.path)} /> :
+        title={leaf.path} aria-expanded={entry.directory ? open : undefined}>
+        {entry.directory ? <DirectoryGlyph expanded={open} /> :
           <><span className="tree-spacer" /><FileGlyph path={entry.path} /></>}
-        <span className="entry-name">{entry.name}</span>
+        <span className="entry-name">{names.join(" / ")}</span>
       </button>
-      {entry.directory && folders.has(entry.path) &&
-        <FileTree path={entry.path} folders={folders} active={active} onSelect={onSelect} />}
-    </li>
-  ))}</ul>;
+      {open && <FileTree path={leaf.path} folders={folders} expanded={expanded} active={active} onSelect={onSelect} />}
+    </li>;
+  })}</ul>;
 }
 
 function App() {
   const [root, setRoot] = useState<string | null>(null);
   const [folders, setFolders] = useState(new Map<string, Entry[]>());
+  const [expanded, setExpanded] = useState(new Set<string>());
   const [tabs, setTabs] = useState<string[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [newProject, setNewProject] = useState(false);
@@ -82,6 +94,7 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [terminalVisible, setTerminalVisible] = useState(false);
   const [preferences, setPreferences] = useState(loadPreferences);
+  const t = translator(preferences.language);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [showExplorer, setShowExplorer] = useState(true);
@@ -128,6 +141,12 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!isTauri()) return;
+    void getCurrentWebview().setZoom(preferences.zoom / 100).catch(error => setNotice(String(error)));
+  }, [preferences.zoom]);
+
+  useEffect(() => {
+    document.documentElement.lang = preferences.language;
     document.documentElement.dataset.theme = preferences.theme;
     localStorage.setItem("swiftforge.preferences", JSON.stringify(preferences));
     editor.setTheme(preferences.theme === "light" ? "vs" : workbenchTheme);
@@ -184,7 +203,7 @@ function App() {
     }
   }
 
-  const build = useBuild(root, () => {
+  const build = useBuild(t, root, () => {
     if (!tabs.some(dirty)) return true;
     setNotice("Save all modified files before building.");
     return false;
@@ -211,6 +230,7 @@ function App() {
     setActive(null);
     setTabs([]);
     setFolders(new Map());
+    setExpanded(new Set());
     setRoot(next);
     const entries = await invoke<Entry[]>("list_directory", { root: next, path: "" });
     setFolders(new Map([["", entries]]));
@@ -262,10 +282,22 @@ function App() {
     if (!root) return;
     void run(async () => {
       if (entry.directory) {
+        const open = new Set(expanded);
+        if (open.delete(entry.path)) {
+          setExpanded(open);
+          return;
+        }
         const next = new Map(folders);
-        if (next.has(entry.path)) next.delete(entry.path);
-        else next.set(entry.path, await invoke<Entry[]>("list_directory", { root, path: entry.path }));
+        let path = entry.path;
+        while (true) {
+          const children = await invoke<Entry[]>("list_directory", { root, path });
+          next.set(path, children);
+          if (children.length !== 1 || !children[0].directory) break;
+          path = children[0].path;
+        }
+        open.add(entry.path);
         setFolders(next);
+        setExpanded(open);
         return;
       }
       await openFile(root, entry.path);
@@ -332,9 +364,23 @@ function App() {
     setTerminalVisible(!terminalVisible);
   }
 
+  function changeZoom(step: number) {
+    setPreferences(value => {
+      const index = zoomLevels.indexOf(value.zoom);
+      const zoom = step === 0 ? 100 : zoomLevels[Math.max(0, Math.min(zoomLevels.length - 1, index + step))];
+      return zoom === value.zoom ? value : { ...value, zoom };
+    });
+  }
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (newProject || cloneProject || settings || (!event.ctrlKey && !event.metaKey) || event.altKey || event.shiftKey) return;
+      if ((!event.ctrlKey && !event.metaKey) || event.altKey) return;
+      if (["+", "=", "-", "0"].includes(event.key)) {
+        event.preventDefault();
+        changeZoom(event.key === "0" ? 0 : event.key === "-" ? -1 : 1);
+        return;
+      }
+      if (newProject || cloneProject || settings || event.shiftKey) return;
       switch (event.key.toLowerCase()) {
         case "`":
           event.preventDefault();
@@ -370,7 +416,7 @@ function App() {
   const edited = active !== null && dirty(active);
   const activeLanguage = active ? language(active) : null;
   const languageName = activeLanguage === "swift" ? "Swift" :
-    activeLanguage === "plaintext" ? "Plain text" :
+    activeLanguage === "plaintext" ? t("Plain text") :
     activeLanguage === "markdown" ? "Markdown" : activeLanguage?.toUpperCase();
   const layout = {
     "--explorer-width": showExplorer ? `min(30vw, ${explorerWidth}px)` : "0px",
@@ -380,6 +426,7 @@ function App() {
   const resizePhone = (width: number) => setPhoneWidth(Math.max(224, Math.min(480, width)));
 
   return (
+    <Locale.Provider value={t}>
     <main className="app" style={layout}>
       <header className="toolbar">
         <div className="brand">
@@ -387,118 +434,134 @@ function App() {
           <span>SwiftForge</span>
         </div>
         <WorkbenchMenu groups={[
-          { label: "File", items: [
-            { name: "New project", shortcut: "Ctrl+N", run: startNewProject },
-            { name: "Open folder", shortcut: "Ctrl+O", run: openProject },
-            { name: "Save", shortcut: "Ctrl+S", enabled: edited, run: save },
-            { name: "Settings", shortcut: "Ctrl+,", run: () => setSettings(true) },
+          { label: t("File"), items: [
+            { name: t("New project"), shortcut: "Ctrl+N", run: startNewProject },
+            { name: t("Open folder"), shortcut: "Ctrl+O", run: openProject },
+            { name: t("Save"), shortcut: "Ctrl+S", enabled: edited, run: save },
+            { name: t("Settings"), shortcut: "Ctrl+,", run: () => setSettings(true) },
           ] },
-          { label: "Edit", items: [
-            { name: "Undo", shortcut: "Ctrl+Z", enabled: !!active, run: () => instance.current?.trigger("menu", "undo", null) },
-            { name: "Redo", shortcut: "Ctrl+Y", enabled: !!active, run: () => instance.current?.trigger("menu", "redo", null) },
-            { name: "Find", shortcut: "Ctrl+F", enabled: !!active, run: () => void instance.current?.getAction("actions.find")?.run() },
+          { label: t("Edit"), items: [
+            { name: t("Undo"), shortcut: "Ctrl+Z", enabled: !!active, run: () => instance.current?.trigger("menu", "undo", null) },
+            { name: t("Redo"), shortcut: "Ctrl+Y", enabled: !!active, run: () => instance.current?.trigger("menu", "redo", null) },
+            { name: t("Find"), shortcut: "Ctrl+F", enabled: !!active, run: () => void instance.current?.getAction("actions.find")?.run() },
           ] },
-          { label: "View", items: [
-            { name: showExplorer ? "Hide Explorer" : "Show Explorer", shortcut: "Ctrl+B", run: () => setShowExplorer(!showExplorer) },
-            { name: showPhone ? "Hide iPhone" : "Show iPhone", run: () => setShowPhone(!showPhone) },
-            { name: build.visible ? "Hide build output" : "Show build output", run: () => build.setVisible(!build.visible) },
-            { name: terminalVisible ? "Hide terminal" : "Show terminal", shortcut: "Ctrl+`", enabled: !!root, run: toggleTerminal },
+          { label: t("View"), items: [
+            { name: t("Zoom in"), shortcut: "Ctrl++", enabled: preferences.zoom < zoomLevels.at(-1)!, run: () => changeZoom(1) },
+            { name: t("Zoom out"), shortcut: "Ctrl+−", enabled: preferences.zoom > zoomLevels[0], run: () => changeZoom(-1) },
+            { name: t("Reset zoom"), shortcut: "Ctrl+0", enabled: preferences.zoom !== 100, run: () => changeZoom(0) },
+            { name: showExplorer ? t("Hide Explorer") : t("Show Explorer"), shortcut: "Ctrl+B", run: () => setShowExplorer(!showExplorer) },
+            { name: showPhone ? t("Hide iPhone") : t("Show iPhone"), run: () => setShowPhone(!showPhone) },
+            { name: build.visible ? t("Hide build output") : t("Show build output"), run: () => build.setVisible(!build.visible) },
+            { name: terminalVisible ? t("Hide terminal") : t("Show terminal"), shortcut: "Ctrl+`", enabled: !!root, run: toggleTerminal },
           ] },
-          { label: "Build", items: [
-            { name: "Build IPA", enabled: !!root && !build.running, run: () => void build.build() },
-            { name: "Export IPA", enabled: !!build.artifact, run: () => void build.exportIPA() },
-            { name: "Check toolchain", run: () => void build.check() },
+          { label: t("Build"), items: [
+            { name: t("Build IPA"), enabled: !!root && !build.running, run: () => void build.build() },
+            { name: t("Export IPA"), enabled: !!build.artifact, run: () => void build.exportIPA() },
+            { name: t("Check toolchain"), run: () => void build.check() },
           ] },
           { label: "GitHub", items: [
-            { name: "Clone repository", run: () => { if (canSwitch()) setCloneProject(true); } },
-            { name: "Repository status", enabled: !!root, run: () => void run(async () => {
+            { name: t("Clone repository"), run: () => { if (canSwitch()) setCloneProject(true); } },
+            { name: t("Repository status"), enabled: !!root, run: () => void run(async () => {
               build.setVisible(true);
               build.write(await invoke<string>("github_status", { root }));
             }) },
-            { name: "Open origin on GitHub", enabled: !!root, run: () => void run(async () => {
+            { name: t("Open origin on GitHub"), enabled: !!root, run: () => void run(async () => {
               await invoke("github_open", { root });
             }) },
           ] },
         ]} />
-        <div className="toolbar-actions">
-          <button className="action" onClick={startNewProject} disabled={busy} title="New project · Ctrl+N"><PlusIcon size={17} /> New project</button>
-          <button className={root ? "action" : "action primary"} onClick={openProject} disabled={busy} title="Open folder · Ctrl+O">
-            <FolderOpenIcon size={17} aria-hidden /> Open folder
-          </button>
-          <button className="action" onClick={save} disabled={busy || !edited} title="Save · Ctrl+S">
-            <FloppyDiskIcon size={17} aria-hidden /> Save
-          </button>
-          {build.controls}
-          <button className="icon-button" aria-label="Settings" title="Settings · Ctrl+," onClick={() => setSettings(true)}><GearSixIcon size={19} /></button>
-        </div>
+        <button className="icon-button toolbar-settings" aria-label={t("Settings")} title={t("Settings") + " · Ctrl+,"}
+          onClick={() => setSettings(true)}><GearSixIcon size={19} /></button>
       </header>
 
-      <nav className="activity-rail" aria-label="Workspace tools">
+      <section className="command-bar" aria-label={t("Build controls")}>
+        {build.controls}
+        <div className="project-actions">
+          <button className="action" onClick={startNewProject} disabled={busy} title={t("New project") + " · Ctrl+N"}>
+            <PlusIcon size={17} aria-hidden /><span>{t("New project")}</span>
+          </button>
+          <button className="action" onClick={openProject} disabled={busy} title={t("Open folder") + " · Ctrl+O"}>
+            <FolderOpenIcon size={17} aria-hidden /><span>{t("Open folder")}</span>
+          </button>
+          <button className="action" onClick={save} disabled={busy || !edited} title={t("Save") + " · Ctrl+S"}>
+            <FloppyDiskIcon size={17} aria-hidden /><span>{t("Save")}</span>
+          </button>
+        </div>
+        {project && <span className="command-target" title={root ?? undefined}>
+          <DeviceMobileIcon size={16} aria-hidden /><span>{project}</span><span>iOS · arm64</span>
+        </span>}
+      </section>
+
+      <nav className="activity-rail" aria-label={t("Workspace tools")}>
         <ExplorerButton visible={showExplorer && activeSidebar === "explorer"} onClick={() => toggleSidebar("explorer")} />
-        <button className="rail-action" aria-label="GitHub and source control" title="GitHub and source control"
+        <button className="rail-action" aria-label={t("GitHub and source control")} title={t("GitHub and source control")}
           aria-pressed={showExplorer && activeSidebar === "github"} onClick={() => toggleSidebar("github")}>
           <GithubLogoIcon size={21} />
         </button>
-        <button className="rail-action" aria-label="Find in current file" title="Find in current file · Ctrl+F"
+        <button className="rail-action" aria-label={t("Find in current file")} title={t("Find in current file") + " · Ctrl+F"}
           disabled={!active} onClick={() => void instance.current?.getAction("actions.find")?.run()}>
           <MagnifyingGlassIcon size={21} aria-hidden />
         </button>
-        <button className="rail-action" aria-label="Toggle build output" title="Build output" aria-pressed={build.visible}
+        <button className="rail-action" aria-label={t("Toggle build output")} title={t("Build output")} aria-pressed={build.visible}
           onClick={() => build.setVisible(!build.visible)}><TerminalWindowIcon size={21} aria-hidden /></button>
-        <button className="rail-action" aria-label="Toggle terminal" title="Project terminal" aria-pressed={terminalVisible}
+        <button className="rail-action" aria-label={t("Toggle terminal")} title={t("Project terminal")} aria-pressed={terminalVisible}
           disabled={!root} onClick={toggleTerminal}><TerminalIcon size={21} aria-hidden /></button>
-        <button className="rail-action device-toggle" aria-label="Toggle iPhone panel" aria-controls="iphone-preview"
-          title={mirrorActive ? "iPhone preview · receiver active" : "iPhone preview"} aria-pressed={showPhone}
+        <button className="rail-action device-toggle" aria-label={t("Toggle iPhone panel")} aria-controls="iphone-preview"
+          title={mirrorActive ? t("iPhone preview · receiver active") : t("iPhone preview")} aria-pressed={showPhone}
           data-active={mirrorActive} onClick={() => setShowPhone(value => !value)}>
           <DeviceMobileIcon size={21} aria-hidden />
         </button>
       </nav>
 
-      <aside aria-label="Project files" id="project-explorer" className="explorer" hidden={!showExplorer || activeSidebar !== "explorer"}>
+      <aside aria-label={t("Project files")} id="project-explorer" className="explorer" hidden={!showExplorer || activeSidebar !== "explorer"}>
         <div className="panel-heading">
-          <h2>Explorer</h2>
-          <button className="icon-button" onClick={openProject} disabled={busy} aria-label="Open project folder" title="Open project folder">
-            <FolderOpenIcon size={17} aria-hidden />
-          </button>
+          <h2>{t("Explorer")}</h2>
+          <div className="explorer-actions">
+            <button className="icon-button" onClick={() => setExpanded(new Set())} disabled={busy || expanded.size === 0}
+              aria-label={t("Collapse all folders")} title={t("Collapse all folders")}><ArrowsInLineVerticalIcon size={16} aria-hidden /></button>
+            <button className="icon-button" onClick={openProject} disabled={busy} aria-label={t("Open project folder")} title={t("Open project folder")}>
+              <FolderOpenIcon size={17} aria-hidden />
+            </button>
+          </div>
         </div>
         {root && <>
           <div className="project-root" title={root}><FolderOpenIcon size={15} aria-hidden /><span>{project}</span></div>
-          <FileTree path="" folders={folders} active={active} onSelect={select} />
+          <FileTree path="" folders={folders} expanded={expanded} active={active} onSelect={select} />
         </>}
       </aside>
-      {activeSidebar === "github" && <aside className="explorer" aria-label="GitHub workspace" hidden={!showExplorer}>
+      {activeSidebar === "github" && <aside className="explorer" aria-label={t("GitHub workspace")} hidden={!showExplorer}>
         <GitHubSidebar root={root} revision={gitRevision}
           clone={() => { if (canSwitch()) setCloneProject(true); }}
           open={path => { if (root) void run(() => openFile(root, path)); }} />
       </aside>}
-      {showExplorer && <PanelDivider panel="project explorer" side="left" width={explorerWidth} onResize={resizeExplorer} />}
+      {showExplorer && <PanelDivider label={t("Resize project explorer")} side="left" width={explorerWidth} onResize={resizeExplorer} />}
 
-      <section className="workspace" aria-label="Code workspace">
-        <nav className="tabs" aria-label="Open files">
+      <section className="workspace" aria-label={t("Code workspace")}>
+        <nav className="tabs" aria-label={t("Open files")}>
           {tabs.map(path => (
             <div className={path === active ? "tab active" : "tab"} key={path}>
               <button className="tab-file" onClick={() => setActive(path)} aria-current={path === active ? "page" : undefined} title={path}>
                 <FileGlyph path={path} /><span>{path.split("/").at(-1)}</span>
-                {dirty(path) && <span className="dirty-dot" aria-label="unsaved" />}
+                {dirty(path) && <span className="dirty-dot" aria-label={t("unsaved")} />}
               </button>
-              <button className="close icon-button" aria-label={`Close ${path}`} title="Close tab" onClick={() => close(path)}>
+              <button className="close icon-button" aria-label={t("Close {path}", { path })} title={t("Close tab")} onClick={() => close(path)}>
                 <XIcon size={13} aria-hidden />
               </button>
             </div>
           ))}
         </nav>
         {active && <div className="editor-navigation">
-          <div className="breadcrumbs" aria-label="Current file path">
+          <div className="breadcrumbs" aria-label={t("Current file path")}>
             {[project, ...active.split("/")].filter(Boolean).map((name, index) => (
               <span key={`${index}:${name}`}>{index > 0 && <CaretRightIcon size={11} aria-hidden />}{name}</span>
             ))}
           </div>
-          <div className="editor-actions" aria-label="Editor commands">
-            <button className="icon-button" aria-label="Find and replace" title="Find and replace · Ctrl+H"
+          <div className="editor-actions" aria-label={t("Editor commands")}>
+            <button className="icon-button" aria-label={t("Find and replace")} title={t("Find and replace") + " · Ctrl+H"}
               onClick={() => void instance.current?.getAction("editor.action.startFindReplaceAction")?.run()}><ArrowsLeftRightIcon size={16} /></button>
-            <button className="icon-button" aria-label="Go to line" title="Go to line · Ctrl+G"
+            <button className="icon-button" aria-label={t("Go to line")} title={t("Go to line") + " · Ctrl+G"}
               onClick={() => void instance.current?.getAction("editor.action.gotoLine")?.run()}><ListNumbersIcon size={16} /></button>
-            <button className="icon-button" aria-label="Go to definition" title="Go to definition · F12" disabled={activeLanguage !== "swift"}
+            <button className="icon-button" aria-label={t("Go to definition")} title={t("Go to definition") + " · F12"} disabled={activeLanguage !== "swift"}
               onClick={() => void instance.current?.getAction("editor.action.revealDefinition")?.run()}><ArrowBendRightDownIcon size={16} /></button>
           </div>
         </div>}
@@ -506,34 +569,37 @@ function App() {
           <div ref={host} className="editor" aria-hidden={!active} />
           {!active && <div className="empty">
             <div className="empty-symbol"><CodeIcon size={32} aria-hidden /></div>
-            <h1>{root ? "Open a file" : "Open a Swift project"}</h1>
-            <p>{root ? "Choose a source file in Explorer." : "Choose an existing project folder to start editing."}</p>
+            <h1>{root ? t("Open a file") : t("Open a Swift project")}</h1>
+            <p>{root ? t("Choose a source file in Explorer.") : t("Choose an existing project folder to start editing.")}</p>
             {root && !showExplorer
-              ? <button className="action" onClick={() => setShowExplorer(true)}>Show Explorer</button>
+              ? <button className="action" onClick={() => setShowExplorer(true)}>{t("Show Explorer")}</button>
               : !root && <div className="welcome-actions">
-                  <button className="action primary" onClick={startNewProject} disabled={busy}><PlusIcon size={17} /> New project</button>
-                  <button className="action" onClick={openProject} disabled={busy}><FolderOpenIcon size={17} /> Open folder</button>
+                  <button className="action primary" onClick={startNewProject} disabled={busy}><PlusIcon size={17} /> {t("New project")}</button>
+                  <button className="action" onClick={openProject} disabled={busy}><FolderOpenIcon size={17} /> {t("Open folder")}</button>
                 </div>}
           </div>}
         </div>
-        {build.panel}
-        {root && <TerminalPane key={root} root={root} visible={terminalVisible} hide={() => setTerminalVisible(false)} />}
       </section>
 
-      {showPhone && <PanelDivider panel="iPhone preview" side="right" width={phoneWidth} onResize={resizePhone} />}
+      {showPhone && <PanelDivider label={t("Resize iPhone preview")} side="right" width={phoneWidth} onResize={resizePhone} />}
       <IPhonePanel visible={showPhone} onReceiverChange={setMirrorActive}>
         <DeviceTools key={root ?? ""} artifact={build.artifact} saveIPA={build.exportIPA}
           showOutput={() => build.setVisible(true)} write={build.write} />
       </IPhonePanel>
 
+      <div className="console-dock" hidden={!build.visible && !terminalVisible}>
+        {build.panel}
+        {root && <TerminalPane key={root} root={root} visible={terminalVisible} hide={() => setTerminalVisible(false)} />}
+      </div>
+
       <footer className={notice ? "status error" : "status"}>
         <span className="status-message" role="status" title={notice || active || root || undefined}>
           {notice ? <WarningCircleIcon size={15} aria-hidden /> : active && !edited && <CheckCircleIcon size={15} aria-hidden />}
-          {notice || (busy ? "Working…" : active ? (edited ? "Unsaved changes" : "Saved") : project || "No project open")}
+          {t(notice) || (busy ? t("Working…") : active ? (edited ? t("Unsaved changes") : t("Saved")) : project || t("No project open"))}
         </span>
         <div className="editor-status">
-          {languageStatus && <span title={languageStatus}>{languageStatus}</span>}
-          {active && <><span>Ln {cursor.lineNumber}, Col {cursor.column}</span>
+          {languageStatus && <span title={t(languageStatus)}>{t(languageStatus)}</span>}
+          {active && <><span>{t("Ln {line}, Col {column}", { line: cursor.lineNumber, column: cursor.column })}</span>
             <span>UTF-8</span><span>{languageName}</span></>}
         </div>
       </footer>
@@ -547,6 +613,7 @@ function App() {
         setNewProject(false);
       }} />}
     </main>
+    </Locale.Provider>
   );
 }
 

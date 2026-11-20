@@ -1,11 +1,13 @@
+import { useLocale, type Translate } from "./i18n";
 import { Channel, invoke } from "@tauri-apps/api/core";
-import { FolderOpenIcon, HammerIcon, PlusIcon, TerminalWindowIcon, XIcon } from "@phosphor-icons/react";
+import { FolderOpenIcon, HammerIcon, PlusIcon, StopIcon, TerminalWindowIcon, XIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
 export function NewProject({ onCancel, onCreate }: {
   onCancel: () => void;
   onCreate: (root: string) => Promise<void>;
 }) {
+  const t = useLocale();
   const dialog = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState("");
   const [bundle, setBundle] = useState("");
@@ -43,27 +45,27 @@ export function NewProject({ onCancel, onCreate }: {
           setBusy(false);
         }
       }}>
-        <div className="dialog-heading"><h1>New SwiftUI project</h1>
-          <button type="button" className="icon-button" aria-label="Close new project" onClick={onCancel} disabled={busy}><XIcon size={16} /></button>
+        <div className="dialog-heading"><h1>{t("New SwiftUI project")}</h1>
+          <button type="button" className="icon-button" aria-label={t("Close new project")} onClick={onCancel} disabled={busy}><XIcon size={16} /></button>
         </div>
-        <label>Project name<input autoFocus required pattern="[A-Za-z][A-Za-z0-9]*" maxLength={50} value={name}
+        <label>{t("Project name")}<input autoFocus required pattern="[A-Za-z][A-Za-z0-9]*" maxLength={50} value={name}
           onChange={event => setName(event.target.value)} placeholder="MyApp" /></label>
-        <label>Bundle identifier<input value={bundle} onChange={event => setBundle(event.target.value)} placeholder={suggestedBundle} /></label>
-        <label>Location<span className="location-field">
+        <label>{t("Bundle identifier")}<input value={bundle} onChange={event => setBundle(event.target.value)} placeholder={suggestedBundle} /></label>
+        <label>{t("Location")}<span className="location-field">
           <input required value={parent} onChange={event => setParent(event.target.value)} placeholder="/home/you/Projects" />
-          <button type="button" className="action" onClick={() => void choose()}><FolderOpenIcon size={16} /> Browse</button>
+          <button type="button" className="action" onClick={() => void choose()}><FolderOpenIcon size={16} /> {t("Browse")}</button>
         </span></label>
         {error && <p role="alert" className="status error">{error}</p>}
         <div className="dialog-actions">
-          <button type="button" className="action" disabled={busy} onClick={onCancel}>Cancel</button>
-          <button className="action primary" disabled={busy || !name || !parent} type="submit"><PlusIcon size={16} /> Create project</button>
+          <button type="button" className="action" disabled={busy} onClick={onCancel}>{t("Cancel")}</button>
+          <button className="action primary" disabled={busy || !name || !parent} type="submit"><PlusIcon size={16} /> {t("Create project")}</button>
         </div>
       </form>
     </dialog>
   );
 }
 
-export function useBuild(root: string | null, canBuild: () => boolean) {
+export function useBuild(t: Translate, root: string | null, canBuild: () => boolean) {
   const [configuration, setConfiguration] = useState<"debug" | "release">("debug");
   const [visible, setVisible] = useState(false);
   const [running, setRunning] = useState(false);
@@ -131,26 +133,35 @@ export function useBuild(root: string | null, canBuild: () => boolean) {
     }
   }
 
+  const stop = () => void invoke("cancel_build").catch(error => write(String(error)));
+
   return {
     visible, setVisible, running, status, artifact, build, check, exportIPA, write,
-    controls: <>
-      <select aria-label="Build configuration" value={configuration} onChange={event => setConfiguration(event.target.value === "release" ? "release" : "debug")} disabled={running}>
-        <option value="debug">Debug</option><option value="release">Release</option>
+    controls: <div className="build-controls" role="group" aria-label={t("Build controls")}>
+      <select aria-label={t("Build configuration")} value={configuration}
+        onChange={event => setConfiguration(event.target.value === "release" ? "release" : "debug")} disabled={running}>
+        <option value="debug">{t("Debug")}</option><option value="release">{t("Release")}</option>
       </select>
-      <button className="action" onClick={() => void build()} disabled={!root || running}><HammerIcon size={16} /> Build</button>
-    </>,
-    panel: visible && <section aria-label="Build output" className="output-pane">
+      {running
+        ? <button className="action build-stop" onClick={stop} title={t("Cancel build")} aria-label={t("Cancel build")}>
+            <StopIcon size={15} weight="fill" /><span>{t("Cancel build")}</span>
+          </button>
+        : <button className="action build-start" onClick={() => void build()} disabled={!root} title={t("Build IPA")} aria-label={t("Build")}>
+            <HammerIcon size={16} weight="bold" /><span>{t("Build")}</span>
+          </button>}
+    </div>,
+    panel: visible && <section aria-label={t("Build output")} className="output-pane">
       <div className="output-toolbar">
-        <h2><TerminalWindowIcon size={16} /> Build output</h2>
-        <span role="status">{status}</span>
+        <h2><TerminalWindowIcon size={16} /> {t("Build output")}</h2>
+        <span role="status">{t(status)}</span>
         <div>
-          {running && <button className="action" onClick={() => void invoke("cancel_build").catch(error => write(String(error)))}>Cancel build</button>}
-          {artifact && <button className="action" onClick={() => void exportIPA()}>Export IPA</button>}
-          <button className="action" onClick={() => void check()}>Toolchain</button>
-          <button className="icon-button" onClick={() => setVisible(false)} aria-label="Hide build output"><XIcon size={16} /></button>
+          {running && <button className="action" onClick={stop}>{t("Cancel build")}</button>}
+          {artifact && <button className="action" onClick={() => void exportIPA()}>{t("Export IPA")}</button>}
+          <button className="action" onClick={() => void check()}>{t("Toolchain")}</button>
+          <button className="icon-button" onClick={() => setVisible(false)} aria-label={t("Hide build output")}><XIcon size={16} /></button>
         </div>
       </div>
-      <pre ref={logView} aria-label="Build log">{output.join("\n")}</pre>
+      <pre ref={logView} aria-label={t("Build log")}>{output.join("\n")}</pre>
     </section>,
   };
 }

@@ -1,3 +1,4 @@
+import { useLocale } from "./i18n";
 import {
   CaretRightIcon, CodeIcon, FileCodeIcon, FileTextIcon, FolderIcon, FolderOpenIcon,
   SidebarSimpleIcon,
@@ -17,21 +18,21 @@ editor.defineTheme(workbenchTheme, {
     { token: "type.identifier", foreground: "9ECBD0" },
   ],
   colors: {
-    "editor.background": "#1F1F1F",
-    "editor.foreground": "#E9E6E1",
-    "editorGutter.background": "#1F1F1F",
-    "editorLineNumber.foreground": "#89837D",
+    "editor.background": "#161621",
+    "editor.foreground": "#EEEDF9",
+    "editorGutter.background": "#161621",
+    "editorLineNumber.foreground": "#8D8BA7",
     "editorLineNumber.activeForeground": "#F0B28D",
-    "editor.lineHighlightBackground": "#272727",
-    "editor.selectionBackground": "#634A3E",
-    "editor.inactiveSelectionBackground": "#493C37",
+    "editor.lineHighlightBackground": "#202032",
+    "editor.selectionBackground": "#594139",
+    "editor.inactiveSelectionBackground": "#473331",
     "editorCursor.foreground": "#F1AB83",
-    "editorIndentGuide.background1": "#313131",
-    "editorIndentGuide.activeBackground1": "#62574C",
-    "editorWidget.background": "#272727",
-    "editorWidget.border": "#48423D",
-    "editorSuggestWidget.selectedBackground": "#493C37",
-    "editorOverviewRuler.border": "#1F1F1F",
+    "editorIndentGuide.background1": "#29283B",
+    "editorIndentGuide.activeBackground1": "#604D46",
+    "editorWidget.background": "#202032",
+    "editorWidget.border": "#39364D",
+    "editorSuggestWidget.selectedBackground": "#473331",
+    "editorOverviewRuler.border": "#161621",
   },
 });
 
@@ -48,14 +49,14 @@ export function DirectoryGlyph({ expanded }: { expanded: boolean }) {
   </>;
 }
 
-export function PanelDivider({ panel, side, width, onResize }: {
-  panel: string;
+export function PanelDivider({ label, side, width, onResize }: {
+  label: string;
   side: "left" | "right";
   width: number;
   onResize: (width: number) => void;
 }) {
   return (
-    <div className="panel-divider" role="separator" tabIndex={0} aria-label={`Resize ${panel}`}
+    <div className="panel-divider" role="separator" tabIndex={0} aria-label={label} data-side={side}
       aria-orientation="vertical" aria-valuemin={side === "left" ? 160 : 224} aria-valuemax={side === "left" ? 384 : 480} aria-valuenow={width}
       onKeyDown={event => {
         if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -86,9 +87,10 @@ export function PanelDivider({ panel, side, width, onResize }: {
 }
 
 export function ExplorerButton({ visible, onClick }: { visible: boolean; onClick: () => void }) {
+  const t = useLocale();
   return (
-    <button className="rail-action" aria-label="Toggle project explorer" aria-controls="project-explorer"
-      aria-pressed={visible} title="Project explorer · Ctrl+B" onClick={onClick}>
+    <button className="rail-action" aria-label={t("Toggle project explorer")} aria-controls="project-explorer"
+      aria-pressed={visible} title={t("Project explorer") + " · Ctrl+B"} onClick={onClick}>
       <SidebarSimpleIcon size={21} aria-hidden />
     </button>
   );

@@ -1,3 +1,4 @@
+import { useLocale } from "./i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AirplayIcon, DeviceMobileIcon, StopIcon, WarningCircleIcon } from "@phosphor-icons/react";
@@ -12,6 +13,7 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
   children?: ReactNode;
   onReceiverChange: (active: boolean) => void;
 }) {
+  const t = useLocale();
   const [receiver, setReceiver] = useState<Receiver | null>(null);
   const [frame, setFrame] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
@@ -90,11 +92,11 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
   }
 
   const connection = error ? "error" : frame ? (stale ? "paused" : "live") : receiver ? "waiting" : "off";
-  const description = frame ? (stale ? "Waiting for new frames" : "Live · control on iPhone") :
-    receiver ? "Waiting for iPhone" : "Receiver off";
+  const description = frame ? (stale ? t("Waiting for new frames") : t("Live · control on iPhone")) :
+    receiver ? t("Waiting for iPhone") : t("Receiver off");
 
   return (
-    <aside className="iphone-panel" id="iphone-preview" aria-label="iPhone preview" hidden={!visible}>
+    <aside className="iphone-panel" id="iphone-preview" aria-label={t("iPhone preview")} hidden={!visible}>
       <div className="panel-heading iphone-heading">
         <h2><DeviceMobileIcon size={16} aria-hidden /> iPhone</h2>
         <span className={`connection-dot ${connection}`} aria-hidden="true" />
@@ -103,7 +105,7 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
         <div className={`phone-outline${frame ? " showing-video" : ""}${frame && landscape ? " landscape" : ""}`}>
           <div className="phone-screen">
             {frame
-              ? <div className="iphone-viewport"><img src={frame} alt="Live screen from the connected iPhone"
+              ? <div className="iphone-viewport"><img src={frame} alt={t("Live screen from the connected iPhone")}
                   onLoad={event => setLandscape(event.currentTarget.naturalWidth > event.currentTarget.naturalHeight)} /></div>
               : <AirplayIcon size={36} weight="light" aria-hidden />}
           </div>
@@ -114,14 +116,14 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
           ? <p className="iphone-error" role="alert"><WarningCircleIcon size={16} aria-hidden />{error}</p>
           : receiver && !frame
             ? <div className="pairing-instructions">
-                <p>Choose <strong>{receiver.name}</strong> in Screen Mirroring.</p>
+                <p>{t("Choose {name} in Screen Mirroring.", { name: receiver.name })}</p>
                 <span className="pairing-code" aria-label={`AirPlay PIN ${receiver.pin}`}>{receiver.pin}</span>
               </div>
-            : !receiver && <p className="iphone-instructions">See your physical iPhone here over AirPlay.</p>}
+            : !receiver && <p className="iphone-instructions">{t("See your physical iPhone here over AirPlay.")}</p>}
         <button className={receiver ? "action mirror-action" : "action primary mirror-action"} disabled={busy}
           onClick={() => void toggle()}>
           {receiver ? <StopIcon size={16} aria-hidden /> : <AirplayIcon size={16} aria-hidden />}
-          {receiver ? "Stop mirroring" : "Start mirroring"}
+          {receiver ? t("Stop mirroring") : t("Start mirroring")}
         </button>
         <p className="iphone-status" role="status">{description}</p>
       </div>

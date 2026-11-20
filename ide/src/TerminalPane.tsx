@@ -1,3 +1,4 @@
+import { useLocale } from "./i18n";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { ArrowsClockwiseIcon, TerminalWindowIcon, XIcon } from "@phosphor-icons/react";
 import { FitAddon } from "@xterm/addon-fit";
@@ -6,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import "@xterm/xterm/css/xterm.css";
 
 export function TerminalPane({ root, visible, hide }: { root: string; visible: boolean; hide: () => void }) {
+  const t = useLocale();
   const container = useRef<HTMLDivElement>(null);
   const instance = useRef<{ terminal: Terminal; fit: FitAddon } | null>(null);
   const [started, setStarted] = useState(visible);
@@ -74,13 +76,13 @@ export function TerminalPane({ root, visible, hide }: { root: string; visible: b
     return () => window.cancelAnimationFrame(frame);
   }, [visible, started]);
 
-  return <section className="output-pane terminal-pane" hidden={!visible} aria-label="Project terminal">
+  return <section className="output-pane terminal-pane" hidden={!visible} aria-label={t("Project terminal")}>
     <div className="output-toolbar">
-      <h2><TerminalWindowIcon size={16} /> Terminal</h2>
+      <h2><TerminalWindowIcon size={16} /> {t("Terminal")}</h2>
       <div>
-        <button className="icon-button" aria-label="Restart terminal" title="Restart terminal"
+        <button className="icon-button" aria-label={t("Restart terminal")} title={t("Restart terminal")}
           onClick={() => setRevision(value => value + 1)}><ArrowsClockwiseIcon size={16} /></button>
-        <button className="icon-button" onClick={hide} aria-label="Hide terminal" title="Hide terminal"><XIcon size={16} /></button>
+        <button className="icon-button" onClick={hide} aria-label={t("Hide terminal")} title={t("Hide terminal")}><XIcon size={16} /></button>
       </div>
     </div>
     <div className="terminal-host" ref={container} />

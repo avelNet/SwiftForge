@@ -1,3 +1,4 @@
+import { SimulatorPreview } from "./SimulatorPreview";
 import { useLocale } from "./i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -10,12 +11,16 @@ interface Receiver {
   pin: string;
 }
 
-export function IPhonePanel({ visible, onReceiverChange, children }: {
+export function IPhonePanel({ visible, onReceiverChange, root, dirty, revision, children }: {
   visible: boolean;
+  root: string | null;
+  dirty: boolean;
+  revision: number;
   children?: ReactNode;
   onReceiverChange: (active: boolean) => void;
 }) {
   const t = useLocale();
+  const [simulate, setSimulate] = useState(false);
   const [receiver, setReceiver] = useState<Receiver | null>(null);
   const [frame, setFrame] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
@@ -111,12 +116,17 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
         <h2><DeviceMobileIcon size={16} aria-hidden /> iPhone</h2>
         <div className="phone-heading-actions">
           <span className={`connection-dot ${connection}`} aria-hidden="true" />
-          <button className="icon-button" aria-label={t("Device display settings")} title={t("Device display settings")}
+          <button className="icon-button" hidden={simulate} aria-label={t("Device display settings")} title={t("Device display settings")}
             aria-expanded={settingsOpen} aria-controls="device-display-settings" onClick={() => setSettingsOpen(value => !value)}>
             <GearSixIcon size={16} />
           </button>
         </div>
       </div>
+      {/Linux/i.test(navigator.platform) && <div className="device-modes" role="group" aria-label={t("Device")}>
+        <button className="action" aria-pressed={!simulate} onClick={() => setSimulate(false)}>{t("My iPhone")}</button>
+        <button className="action" aria-pressed={simulate} onClick={() => setSimulate(true)}>{t("Simulator")}</button>
+      </div>}
+      {simulate ? <SimulatorPreview key={root ?? ""} root={root} dirty={dirty} revision={revision} /> : <>
       <div className="device-display-settings" id="device-display-settings" hidden={!settingsOpen}>
         <label>{t("Preview size")} <select value={previewSize} onChange={event => setPreviewSize(event.target.value)}>
           <option value="fit">{t("Fit")}</option><option value="compact">{t("Compact")}</option>
@@ -155,6 +165,7 @@ export function IPhonePanel({ visible, onReceiverChange, children }: {
         <p className="iphone-status" role="status">{description}</p>
       </div>
       {children}
+      </>}
     </aside>
   );
 }

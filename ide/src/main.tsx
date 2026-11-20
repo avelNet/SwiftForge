@@ -12,7 +12,7 @@ import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import {
-  ArrowClockwiseIcon, SunIcon, MoonIcon, FilePlusIcon, FolderPlusIcon, SidebarSimpleIcon, CaretRightIcon, ArrowsInLineVerticalIcon, GithubLogoIcon, ListNumbersIcon, ArrowsLeftRightIcon, ArrowBendRightDownIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
+  CopyIcon, LinkSimpleIcon, ArrowClockwiseIcon, SunIcon, MoonIcon, FilePlusIcon, FolderPlusIcon, SidebarSimpleIcon, CaretRightIcon, ArrowsInLineVerticalIcon, GithubLogoIcon, ListNumbersIcon, ArrowsLeftRightIcon, ArrowBendRightDownIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
   FolderOpenIcon, GearSixIcon, MagnifyingGlassIcon, PlusIcon, TerminalIcon, TerminalWindowIcon, WarningCircleIcon, XIcon,
 } from "@phosphor-icons/react";
 import "@fontsource/geist/400.css";
@@ -345,8 +345,8 @@ function App() {
   function showFileMenu(event: MouseEvent, entry: Entry) {
     event.preventDefault();
     if (busy) return;
-    setFileMenu({ entry, x: Math.max(4, Math.min(event.clientX, innerWidth - 239)),
-      y: Math.max(4, Math.min(event.clientY, innerHeight - 192)) });
+    setFileMenu({ entry, x: Math.max(4, Math.min(event.clientX + 4, innerWidth - 318)),
+      y: Math.max(4, Math.min(event.clientY + 4, innerHeight - 190)) });
   }
 
   function refreshExplorer() {
@@ -764,7 +764,7 @@ function App() {
       </section>
 
       {showPhone && !deviceMode && <PanelDivider label={t("Resize iPhone preview")} side="right" width={phoneWidth} onResize={resizePhone} />}
-      <IPhonePanel visible={showPhone} onReceiverChange={setMirrorActive}>
+      <IPhonePanel visible={showPhone} onReceiverChange={setMirrorActive} root={root} dirty={tabs.some(dirty)} revision={gitRevision}>
         <DeviceTools key={root ?? ""} artifact={build.artifact} saveIPA={build.exportIPA}
           showOutput={() => build.setVisible(true)} write={build.write} />
       </IPhonePanel>
@@ -792,16 +792,18 @@ function App() {
           setEntryParent(directory ? path : path.split("/").slice(0, -1).join("/"));
           setFileMenu(null);
           setNewEntry(kind);
-        }}>{t(kind === "file" ? "New file" : "New folder")}</button>)}
-        <button onClick={() => {
+        }}>{kind === "file" ? <FilePlusIcon size={16} aria-hidden /> : <FolderPlusIcon size={16} aria-hidden />}
+          {t(kind === "file" ? "New file" : "New folder")}</button>)}
+        <button className="file-context-divider" onClick={() => {
           setFileMenu(null);
           void run(() => invoke("reveal_entry", { root, path: fileMenu.entry.path }));
-        }}>{t("Show in file manager")}</button>
-        {[false, true].map(relative => <button key={String(relative)} onClick={() => {
+        }}><FolderOpenIcon size={16} aria-hidden />{t("Show in file manager")}</button>
+        {[false, true].map(relative => <button key={String(relative)} className={relative ? undefined : "file-context-divider"} onClick={() => {
           setFileMenu(null);
           const { path } = fileMenu.entry;
           void run(() => navigator.clipboard.writeText(relative ? path || "." : path ? root + "/" + path : root));
-        }}>{t(relative ? "Copy relative path" : "Copy full path")}</button>)}
+        }}>{relative ? <LinkSimpleIcon size={16} aria-hidden /> : <CopyIcon size={16} aria-hidden />}
+          {t(relative ? "Copy relative path" : "Copy full path")}</button>)}
       </div>}
       {newEntry && root && <CreateEntryDialog folder={newEntry === "folder"} parent={entryParent || root}
         create={createEntry} close={() => setNewEntry(null)} />}

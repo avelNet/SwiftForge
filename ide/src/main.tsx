@@ -19,6 +19,7 @@ import "@fontsource/geist/600.css";
 import "@fontsource/geist-mono/400.css";
 import "./styles.css";
 import { IPhonePanel } from "./IPhonePanel";
+import { DeviceTools } from "./DeviceTools";
 import { NewProject, useBuild } from "./BuildWorkspace";
 import { SwiftLanguage } from "./swift-language";
 import { GitHubClone, Settings, WorkbenchMenu, loadPreferences } from "./WorkbenchTools";
@@ -185,6 +186,7 @@ function App() {
     swift.current = null;
     setLanguageStatus("");
     await invoke("language_stop");
+    await invoke("device_logs_stop");
     instance.current?.setModel(null);
     for (const doc of documents.current.values()) {
       doc.subscription.dispose();
@@ -473,7 +475,10 @@ function App() {
       </section>
 
       {showPhone && <PanelDivider panel="iPhone preview" side="right" width={phoneWidth} onResize={resizePhone} />}
-      <IPhonePanel visible={showPhone} onReceiverChange={setMirrorActive} />
+      <IPhonePanel visible={showPhone} onReceiverChange={setMirrorActive}>
+        <DeviceTools key={root ?? ""} artifact={build.artifact} saveIPA={build.exportIPA}
+          showOutput={() => build.setVisible(true)} write={build.write} />
+      </IPhonePanel>
 
       <footer className={notice ? "status error" : "status"}>
         <span className="status-message" role="status" title={notice || active || root || undefined}>

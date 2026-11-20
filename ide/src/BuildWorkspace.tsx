@@ -124,8 +124,10 @@ export function useBuild(root: string | null, canBuild: () => boolean) {
     try {
       const destination = await invoke<string | null>("export_ipa", { root, artifact });
       if (destination) write(`Exported ${destination}`);
+      return destination;
     } catch (problem) {
       write(String(problem));
+      return null;
     }
   }
 

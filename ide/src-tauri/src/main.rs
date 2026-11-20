@@ -97,6 +97,16 @@ fn list_directory(workspace: State<'_, Workspace>, root: &str, path: &str) -> Re
 }
 
 #[tauri::command]
+fn reveal_entry(workspace: State<'_, Workspace>, root: &str, path: &str) -> Result<()> {
+    let state = workspace.lock().map_err(|error| error.to_string())?;
+    let target = workspace_path(active_root(&state, root)?, path)?;
+    let directory = if target.is_dir() { target.as_path() } else { target.parent().ok_or("The file has no parent directory.")? };
+    let program = if cfg!(target_os = "windows") { "explorer.exe" } else if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
+    std::process::Command::new(program).arg(directory).spawn().map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 fn create_entry(workspace: State<'_, Workspace>, root: &str, parent: &str, name: &str, directory: bool) -> Result<()> {
     if name.trim() != name || name.is_empty() || name.starts_with('.') || name == "node_modules"
         || name.contains(['/', '\\', '\0', ':']) || name.chars().any(char::is_control)
@@ -188,6 +198,7 @@ fn main() {
             open_workspace,
             list_directory,
             create_entry,
+            reveal_entry,
             read_generated_interface,
             read_document,
             save_document,

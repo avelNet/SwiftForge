@@ -10,9 +10,9 @@ import "monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js";
 import "monaco-editor/esm/vs/language/json/monaco.contribution.js";
 import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import {
-  SunIcon, MoonIcon, FilePlusIcon, FolderPlusIcon, SidebarSimpleIcon, CaretRightIcon, ArrowsInLineVerticalIcon, GithubLogoIcon, ListNumbersIcon, ArrowsLeftRightIcon, ArrowBendRightDownIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
+  ArrowClockwiseIcon, SunIcon, MoonIcon, FilePlusIcon, FolderPlusIcon, SidebarSimpleIcon, CaretRightIcon, ArrowsInLineVerticalIcon, GithubLogoIcon, ListNumbersIcon, ArrowsLeftRightIcon, ArrowBendRightDownIcon, CheckCircleIcon, CodeIcon, DeviceMobileIcon, FloppyDiskIcon,
   FolderOpenIcon, GearSixIcon, MagnifyingGlassIcon, PlusIcon, TerminalIcon, TerminalWindowIcon, WarningCircleIcon, XIcon,
 } from "@phosphor-icons/react";
 import "@fontsource/geist/400.css";
@@ -54,12 +54,13 @@ function language(path: string) {
   return "plaintext";
 }
 
-function FileTree({ path, folders, expanded, active, onSelect }: {
+function FileTree({ path, folders, expanded, active, onSelect, onContext }: {
   path: string;
   folders: Map<string, Entry[]>;
   expanded: Set<string>;
   active: string | null;
   onSelect: (entry: Entry, leaf: Entry) => void;
+  onContext: (event: MouseEvent, entry: Entry) => void;
 }) {
   return <ul className="file-tree">{folders.get(path)?.map(entry => {
     const names = [entry.name];
@@ -72,13 +73,13 @@ function FileTree({ path, folders, expanded, active, onSelect }: {
     }
     const open = entry.directory && expanded.has(entry.path);
     return <li key={entry.path}>
-      <button className={active === entry.path ? "entry selected" : "entry"} onClick={() => onSelect(entry, leaf)}
+      <button className={active === entry.path ? "entry selected" : "entry"} onClick={() => onSelect(entry, leaf)} onContextMenu={event => onContext(event, leaf)}
         title={leaf.path} aria-expanded={entry.directory ? open : undefined}>
         {entry.directory ? <DirectoryGlyph expanded={open} path={leaf.path} /> :
           <><span className="tree-spacer" /><FileGlyph path={entry.path} /></>}
         <span className="entry-name">{names.join(" / ")}</span>
       </button>
-      {open && <FileTree path={leaf.path} folders={folders} expanded={expanded} active={active} onSelect={onSelect} />}
+      {open && <FileTree path={leaf.path} folders={folders} expanded={expanded} active={active} onSelect={onSelect} onContext={onContext} />}
     </li>;
   })}</ul>;
 }
@@ -86,6 +87,8 @@ function FileTree({ path, folders, expanded, active, onSelect }: {
 function App() {
   const [root, setRoot] = useState<string | null>(null);
   const [folders, setFolders] = useState(new Map<string, Entry[]>());
+  const [fileMenu, setFileMenu] = useState<{ x: number; y: number; entry: Entry } | null>(null);
+  const fileMenuRef = useRef<HTMLDivElement>(null);
   const [entryParent, setEntryParent] = useState("");
   const [newEntry, setNewEntry] = useState<"file" | "folder" | null>(null);
   const [expanded, setExpanded] = useState(new Set<string>());
@@ -289,6 +292,48 @@ function App() {
       setTabs(previous => [...previous, path]);
     }
     setActive(path);
+  }
+
+  useEffect(() => {
+    if (!fileMenu) return;
+    fileMenuRef.current?.querySelector("button")?.focus();
+    const dismiss = (event: PointerEvent) => {
+      if (!fileMenuRef.current?.contains(event.target as Node)) setFileMenu(null);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFileMenu(null);
+    };
+    window.addEventListener("pointerdown", dismiss);
+    window.addEventListener("keydown", escape);
+    return () => {
+      window.removeEventListener("pointerdown", dismiss);
+      window.removeEventListener("keydown", escape);
+    };
+  }, [fileMenu]);
+
+  function showFileMenu(event: MouseEvent, entry: Entry) {
+    event.preventDefault();
+    if (busy) return;
+    setFileMenu({ entry, x: Math.max(4, Math.min(event.clientX, innerWidth - 239)),
+      y: Math.max(4, Math.min(event.clientY, innerHeight - 192)) });
+  }
+
+  function refreshExplorer() {
+    if (!root) return;
+    void run(async () => {
+      const next = new Map<string, Entry[]>();
+      async function refresh(path: string) {
+        const children = await invoke<Entry[]>("list_directory", { root, path });
+        next.set(path, children);
+        for (const child of children) {
+          if (child.directory && folders.has(child.path)) await refresh(child.path);
+        }
+      }
+      await refresh("");
+      setFolders(next);
+      setExpanded(previous => new Set([...previous].filter(path => next.has(path))));
+      if (entryParent && !next.has(entryParent)) setEntryParent("");
+    });
   }
 
   async function createEntry(name: string) {
@@ -610,6 +655,8 @@ function App() {
               aria-label={t("New file")} title={t("New file")}><FilePlusIcon size={16} /></button>
             <button className="icon-button" disabled={!root || busy} onClick={() => setNewEntry("folder")}
               aria-label={t("New folder")} title={t("New folder")}><FolderPlusIcon size={16} /></button>
+            <button className="icon-button" disabled={!root || busy} onClick={refreshExplorer}
+              aria-label={t("Refresh files")} title={t("Refresh files")}><ArrowClockwiseIcon size={16} /></button>
             <button className="icon-button" onClick={() => setExpanded(new Set())} disabled={busy || expanded.size === 0}
               aria-label={t("Collapse all folders")} title={t("Collapse all folders")}><ArrowsInLineVerticalIcon size={16} aria-hidden /></button>
             <button className="icon-button" onClick={openProject} disabled={busy} aria-label={t("Open project folder")} title={t("Open project folder")}>
@@ -618,8 +665,9 @@ function App() {
           </div>
         </div>
         {root && <>
-          <button className="project-root explorer-root" title={root} aria-pressed={!entryParent} onClick={() => setEntryParent("")}><FolderOpenIcon size={15} aria-hidden /><span>{project}</span></button>
-          <FileTree path="" folders={folders} expanded={expanded} active={active} onSelect={select} />
+          <button className="project-root explorer-root" title={root} aria-pressed={!entryParent} onClick={() => setEntryParent("")}
+            onContextMenu={event => showFileMenu(event, { name: project ?? "", path: "", directory: true })}><FolderOpenIcon size={15} aria-hidden /><span>{project}</span></button>
+          <FileTree path="" folders={folders} expanded={expanded} active={active} onSelect={select} onContext={showFileMenu} />
         </>}
       </aside>
       {activeSidebar === "github" && <aside className="explorer" aria-label={t("GitHub workspace")} hidden={!showExplorer}>
@@ -706,6 +754,24 @@ function App() {
             <span>UTF-8</span><span>{languageName}</span></>}
         </div>
       </footer>
+      {fileMenu && root && <div ref={fileMenuRef} className="file-context" role="group" aria-label={t("File actions")}
+        style={{ left: fileMenu.x, top: fileMenu.y }}>
+        {(["file", "folder"] as const).map(kind => <button key={kind} onClick={() => {
+          const { path, directory } = fileMenu.entry;
+          setEntryParent(directory ? path : path.split("/").slice(0, -1).join("/"));
+          setFileMenu(null);
+          setNewEntry(kind);
+        }}>{t(kind === "file" ? "New file" : "New folder")}</button>)}
+        <button onClick={() => {
+          setFileMenu(null);
+          void run(() => invoke("reveal_entry", { root, path: fileMenu.entry.path }));
+        }}>{t("Show in file manager")}</button>
+        {[false, true].map(relative => <button key={String(relative)} onClick={() => {
+          setFileMenu(null);
+          const { path } = fileMenu.entry;
+          void run(() => navigator.clipboard.writeText(relative ? path || "." : path ? root + "/" + path : root));
+        }}>{t(relative ? "Copy relative path" : "Copy full path")}</button>)}
+      </div>}
       {newEntry && root && <CreateEntryDialog folder={newEntry === "folder"} parent={entryParent || root}
         create={createEntry} close={() => setNewEntry(null)} />}
       {settings && <Settings value={preferences} change={setPreferences} close={() => setSettings(false)} />}
